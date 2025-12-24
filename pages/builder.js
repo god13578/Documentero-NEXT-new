@@ -1,0 +1,104 @@
+import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
+
+import Topbar from "../components/Topbar";
+import Sidebar from "../components/Sidebar";
+import TemplateList from "../components/TemplateList";
+import TemplateEditor from "../components/TemplateEditor";
+import TemplateToolbar from "../components/TemplateToolbar";
+import DocumentPreview from "../components/DocumentPreview";
+
+// PDF viewer (client only)
+const PDFViewer = dynamic(() => import("../components/PDFViewer"), {
+  ssr: false,
+});
+
+export default function Builder() {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+
+  const [previewHtml, setPreviewHtml] = useState("");
+  const [pdfUrl, setPdfUrl] = useState(null);
+
+  // ----------------------------
+  // Reset preview เมื่อเปลี่ยน template
+  // ----------------------------
+  useEffect(() => {
+    setPreviewHtml("");
+    setPdfUrl(null);
+  }, [selectedTemplate]);
+
+  // ----------------------------
+  // Backend fill API
+  // ----------------------------
+  async function onFill(templateName, data, toPdf = false) {
+    const res = await fetch("/api/fill", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        templateName,
+        data,
+        toPdf,
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error("Fill API failed");
+    }
+
+    return await res.json();
+  }
+
+  return (
+    <div className="h-screen flex flex-col">
+      {/* TOP BAR */}
+      <Topbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* SIDEBAR */}
+        <Sidebar open={sidebarOpen} />
+
+        {/* MAIN */}
+        <main className="flex-1 p-4 overflow-hidden">
+          <div className="grid grid-cols-12 gap-4 h-full">
+            {/* LEFT PANEL */}
+            <div className="col-span-4 bg-white rounded shadow h-full overflow-y-auto p-3">
+              <TemplateToolbar name={selectedTemplate} />
+
+              {/* ⚠️ สำคัญ: TemplateList ต้องเรียก setSelectedTemplate เท่านั้น */}
+              <TemplateList
+                onSelect={(name) => {
+                  setSelectedTemplate(name);
+                }}
+              />
+
+              {selectedTemplate && (
+                <TemplateEditor
+                  template={selectedTemplate}
+                  onFill={onFill}
+                  onPreviewUrl={setPdfUrl}
+                  onPreviewHtml={setPreviewHtml}
+                />
+              )}
+            </div>
+
+            {/* RIGHT PANEL */}
+            <div className="col-span-8 bg-white rounded shadow h-full p-4 flex flex-col">
+              <h3 className="font-semibold mb-2">
+                {pdfUrl ? "PDF Preview" : "Live Preview"}
+              </h3>
+
+              <div className="border rounded flex-1 overflow-hidden">
+                {pdfUrl ? (
+                  <PDFViewer url={pdfUrl} />
+                ) : (
+                  <DocumentPreview html={previewHtml} />
+                )}
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}

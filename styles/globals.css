@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Small UI tweaks */
+body {
+  @apply bg-gray-50 text-slate-800;
+}
+
+/* =========================
+   Document preview (A4) styles
+   ========================= */
+
+/* เปิดใช้ได้ทันที ถ้ามีฟอนต์ใน /public/fonts */
+/*
+@font-face {
+  font-family: "THSarabunNew";
+  src: url("/fonts/THSarabunNew.ttf") format("truetype");
+  font-weight: normal;
+}
+@font-face {
+  font-family: "THSarabunNew";
+  src: url("/fonts/THSarabunNew-Bold.ttf") format("truetype");
+  font-weight: bold;
+}
+*/
+
+.document-preview-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  background: #f3f4f6;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+/* กระดาษ A4 */
+.document-preview {
+  width: 210mm;
+  min-height: 297mm;
+  background: white;
+  box-sizing: border-box;
+
+  /* ระยะขอบราชการไทย */
+  padding: 25mm;
+
+  font-family: "THSarabunNew", "Prompt", Arial, "Noto Sans Thai", sans-serif;
+  font-size: 16pt;
+  line-height: 1.6;
+  color: #111827;
+
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  overflow: hidden;
+}
+
+.document-preview p {
+  margin: 0 0 0.6em 0;
+}
+
+.document-preview h1,
+.document-preview h2 {
+  margin: 0 0 0.6em;
+}
+
+.document-preview .page-break {
+  page-break-after: always;
+}

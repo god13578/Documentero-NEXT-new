@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body {
+      font-family: "TH Sarabun New", Arial, sans-serif;
+      font-size: 16pt;
+    }
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 25mm;
+      background: white;
+      margin: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <p>{ส่วนราชการ}</p>
+    <p>{เลขที่ทส}</p>
+    <p>{เดือน-ปี}</p>
+    <p>{ชื่อเรื่อง}</p>
+    <p>{เรื่องสำหรับ}</p>
+    <p>{เรียน}</p>
+  </div>
+</body>
+</html>
+
+function applyPreviewData(html, data) {
+  let out = html;
+  Object.entries(data).forEach(([key, value]) => {
+    const safeValue =
+      value && value.trim() !== "" ? value : `{${key}}`;
+    out = out.replaceAll(`{${key}}`, safeValue);
+  });
+  return out;
+}
