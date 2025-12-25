@@ -29,24 +29,31 @@ export default function Builder() {
   }, [selectedTemplate]);
 
   // ----------------------------
-  // Backend fill API
+  // Backend fill API (SAFE)
   // ----------------------------
-  async function onFill(templateName, data, toPdf = false) {
-    const res = await fetch("/api/fill", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        templateName,
-        data,
-        toPdf,
-      }),
-    });
+  async function onFill(template, data, toPdf = false) {
+    try {
+      const res = await fetch("/api/fill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          template, // ✅ ชื่อ field ตรงกับ API แล้ว
+          data,
+          toPdf,
+        }),
+      });
 
-    if (!res.ok) {
-      throw new Error("Fill API failed");
+      const json = await res.json();
+
+      // ❗ ไม่ throw – แค่ส่งผลกลับ
+      return json;
+    } catch (err) {
+      console.error("Fill API error:", err);
+      return {
+        ok: false,
+        error: err.message,
+      };
     }
-
-    return await res.json();
   }
 
   return (
@@ -65,7 +72,6 @@ export default function Builder() {
             <div className="col-span-4 bg-white rounded shadow h-full overflow-y-auto p-3">
               <TemplateToolbar name={selectedTemplate} />
 
-              {/* ⚠️ สำคัญ: TemplateList ต้องเรียก setSelectedTemplate เท่านั้น */}
               <TemplateList
                 onSelect={(name) => {
                   setSelectedTemplate(name);
@@ -76,7 +82,6 @@ export default function Builder() {
                 <TemplateEditor
                   template={selectedTemplate}
                   onFill={onFill}
-                  onPreviewUrl={setPdfUrl}
                   onPreviewHtml={setPreviewHtml}
                 />
               )}

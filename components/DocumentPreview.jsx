@@ -1,22 +1,39 @@
-// components/DocumentPreview.jsx
+import { useEffect, useRef } from "react";
+
 export default function DocumentPreview({ html }) {
-  if (!html) {
-    return (
-      <div className="p-6 text-gray-400">
-        No preview content
-      </div>
-    );
-  }
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+
+    function onClick(e) {
+      const el = e.target.closest(".doc-field");
+      if (!el) return;
+
+      const field = el.getAttribute("data-field");
+      if (!field) return;
+
+      const input = document.querySelector(
+        `input[name="${field}"]`
+      );
+
+      input?.focus();
+      el.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+
+    ref.current.addEventListener("click", onClick);
+    return () =>
+      ref.current.removeEventListener("click", onClick);
+  }, [html]);
 
   return (
-    <div className="document-preview-wrapper">
-      <div
-        className="document-preview"
-        // NOTE:
-        // - ใช้กับ HTML ที่คุณควบคุมเอง (template)
-        // - ไม่ใช้กับ input ผู้ใช้ดิบ ๆ
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
-    </div>
+    <div
+      ref={ref}
+      className="w-full h-full overflow-auto p-2"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
   );
 }
