@@ -6,9 +6,11 @@ export default function DocumentPreview({ html }) {
   useEffect(() => {
     if (!ref.current) return;
 
-    function onClick(e) {
+    function onMouseDown(e) {
       const el = e.target.closest(".doc-field");
       if (!el) return;
+
+      e.preventDefault(); // 🔥 สำคัญมาก: กัน blur ก่อนเกิด
 
       const field = el.getAttribute("data-field");
       if (!field) return;
@@ -16,23 +18,18 @@ export default function DocumentPreview({ html }) {
       const input = document.querySelector(
         `input[name="${field}"]`
       );
-
       input?.focus();
-      el.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
     }
 
-    ref.current.addEventListener("click", onClick);
+    ref.current.addEventListener("mousedown", onMouseDown);
     return () =>
-      ref.current.removeEventListener("click", onClick);
+      ref.current.removeEventListener("mousedown", onMouseDown);
   }, [html]);
 
   return (
     <div
       ref={ref}
-      className="w-full h-full overflow-auto p-2"
+      className="h-[78vh] overflow-y-auto bg-[#f2f2f2] px-2"
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

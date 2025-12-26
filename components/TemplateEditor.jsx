@@ -19,12 +19,13 @@ export default function TemplateEditor({
   onPreviewHtml,
 }) {
   const editorRef = useRef(null);
+  const isSwitchingField = useRef(false);
 
   const [fields, setFields] = useState([]);
   const [values, setValues] = useState({});
   const [labels, setLabels] = useState({});
   const [activeField, setActiveField] = useState(null);
-
+  
   const [basePreview, setBasePreview] = useState("");
 
   /* =========================
@@ -73,10 +74,13 @@ export default function TemplateEditor({
 
     // 2) focus-only highlight
     if (activeField) {
+      const re = new RegExp(
+        `<span class="doc-field" data-field="${activeField}">([\\s\\S]*?)<\\/span>`,
+        "g" // 🔥 ทำให้โดนทุกตำแหน่ง
+      );
+    
       html = html.replace(
-        new RegExp(
-          `<span class="doc-field" data-field="${activeField}">([\\s\\S]*?)<\\/span>`
-        ),
+        re,
         `<span class="doc-field active" data-field="${activeField}">$1</span>`
       );
     }
@@ -98,13 +102,22 @@ export default function TemplateEditor({
      Handlers
   ========================= */
   function handleFocus(field) {
-    setActiveField(field);
-    scrollToInput(field);
-  }
+  isSwitchingField.current = true;
+  setActiveField(field);
+  scrollToInput(field);
+
+  // reset หลัง event loop
+  setTimeout(() => {
+    isSwitchingField.current = false;
+  }, 0);
+}
 
   function handleBlur() {
-    setActiveField(null); // hide highlight
-  }
+  // ถ้า blur เพราะกำลังสลับ field → อย่า clear
+  if (isSwitchingField.current) return;
+
+  setActiveField(null);
+}
 
   function handleChange(field, value) {
     setValues((prev) => ({ ...prev, [field]: value }));
@@ -117,6 +130,21 @@ export default function TemplateEditor({
     if (res?.docxUrl) {
       window.open(res.docxUrl, "_blank");
     }
+  }
+
+  async function handleGeneratePDF() {
+    const res = await fetch("/api/generate-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        template,
+        values,
+      }),
+    });
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
   }
 
   /* =========================
@@ -135,6 +163,13 @@ export default function TemplateEditor({
         >
           Generate DOCX
         </button>
+        <button
+          onClick={handleGeneratePDF}
+          className="px-3 py-1 bg-red-600 text-white rounded"
+        >
+          Generate PDF
+        </button>
+
       </div>
 
       {fields.map((key) => (
@@ -142,15 +177,15 @@ export default function TemplateEditor({
           <label className="block font-medium mb-1">
             {labels[key]}
           </label>
+          
           <input
             name={key}
-            className="border w-full p-2 rounded"
+            className={`border w-full p-2 rounded transition${activeField === key? 
+            "border-orange-500 bg-orange-50 ring-2 ring-orange-200": "border-gray-300"}`}
             value={values[key] || ""}
             onFocus={() => handleFocus(key)}
             onBlur={handleBlur}
-            onChange={(e) =>
-              handleChange(key, e.target.value)
-            }
+            onChange={(e) => handleChange(key, e.target.value)}
             placeholder={`ใส่ค่า ${labels[key]}`}
           />
         </div>
