@@ -25,6 +25,8 @@ export default function TemplateEditor({
   const [values, setValues] = useState({});
   const [labels, setLabels] = useState({});
   const [activeField, setActiveField] = useState(null);
+  const [generateState, setGenerateState] = useState("idle");
+  const [errorMessage, setErrorMessage] = useState("");
   
   const [basePreview, setBasePreview] = useState("");
 
