@@ -134,20 +134,42 @@ export default function TemplateEditor({
     }
   }
 
-  async function handleGeneratePDF() {
-    const res = await fetch("/api/generate-pdf", {
+  const handleGeneratePdf = async () => {
+  try {
+    setGenerateState("loading");
+    setErrorMessage("");
+
+    const res = await fetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        template,
-        values,
+        template, // ✅ ใช้ prop ที่มีอยู่แล้ว
+        fields: values, // ✅ ต้องเป็น values
       }),
     });
 
+    if (!res.ok) {
+      throw new Error("Generate failed");
+    }
+
     const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
+
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "document.pdf";
+    a.click();
+    window.URL.revokeObjectURL(url);
+
+    setGenerateState("idle");
+  } catch (err) {
+    console.error(err);
+    setGenerateState("error");
+    setErrorMessage("ไม่สามารถสร้างเอกสารได้ กรุณาลองใหม่");
   }
+};
+
+
 
   /* =========================
      Render
@@ -166,11 +188,27 @@ export default function TemplateEditor({
           Generate DOCX
         </button>
         <button
-          onClick={handleGeneratePDF}
-          className="px-3 py-1 bg-red-600 text-white rounded"
+          onClick={handleGeneratePdf}
+          disabled={generateState === "loading"}
+          className={`px-3 py-1 rounded text-white transition
+            ${generateState === "loading"
+              ? "bg-red-300 cursor-not-allowed"
+              : "bg-red-600 hover:bg-red-700"
+            }`}
         >
-          Generate PDF
+          {generateState === "loading"
+            ? "กำลังสร้าง PDF..."
+            : "ดาวน์โหลด PDF"}
         </button>
+
+
+        {generateState === "error" && (
+          <div style={{ color: "red", marginTop: 8 }}>
+            ❌ {errorMessage}
+          </div>
+        )}
+
+
 
       </div>
 
