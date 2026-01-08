@@ -23,7 +23,7 @@ export default async function handler(req, res) {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      'attachment; filename="document.pdf"'
+      'inline; filename="document.pdf"'
     );
 
     res.send(pdfBuffer);

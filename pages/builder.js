@@ -83,6 +83,7 @@ export default function Builder() {
                   template={selectedTemplate}
                   onFill={onFill}
                   onPreviewHtml={setPreviewHtml}
+                  onPdfPreview={setPdfUrl}
                 />
               )}
             </div>
@@ -95,7 +96,7 @@ export default function Builder() {
 
               <div className="border rounded flex-1 overflow-hidden">
                 {pdfUrl ? (
-                  <PDFViewer url={pdfUrl} />
+                  <PDFViewer pdfUrl={pdfUrl} />
                 ) : (
                   <DocumentPreview html={previewHtml} />
                 )}
