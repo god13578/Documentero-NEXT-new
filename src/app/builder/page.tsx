@@ -1,5 +1,6 @@
-import { redirect } from "next/navigation";
+import { uploadTemplate } from "./actions";
+import BuilderForm from "./form";
 
 export default function BuilderPage() {
-  redirect("/");
+  return <BuilderForm action={uploadTemplate} />;
 }

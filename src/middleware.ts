@@ -5,18 +5,26 @@ export function middleware(req: NextRequest) {
   const session = req.cookies.get("doc_session");
   const { pathname } = req.nextUrl;
 
-  // อนุญาตหน้า login
-  if (pathname.startsWith("/login")) {
+  // อนุญาต static + public
+  if (
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon.ico")
+  ) {
     return NextResponse.next();
   }
 
-  // ยังไม่ login → ส่งไป login
   if (!session) {
-    const loginUrl = new URL("/login", req.url);
-    loginUrl.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // login แล้ว → ใช้ต่อได้
   return NextResponse.next();
 }
+
+/**
+ * 🔴 สำคัญมาก
+ * ถ้าไม่มี matcher → middleware จะ intercept ทุกอย่าง
+ */
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+};
