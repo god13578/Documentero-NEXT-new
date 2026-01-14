@@ -7,21 +7,21 @@ import {
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 export const users = pgTable("users", {
-  id: uuid("id").defaultRandom().primaryKey(),
+  id: uuid("id").primaryKey(),
   username: text("username").notNull(),
   passwordHash: text("password_hash").notNull(),
   fullName: text("full_name").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at"),
 });
 
 export const templates = pgTable("templates", {
-  id: uuid("id").defaultRandom().primaryKey(),
+  id: uuid("id").primaryKey(),
   name: text("name").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at"),
 });
 
 export const templateFields = pgTable("template_fields", {
-  id: uuid("id").defaultRandom().primaryKey(),
+  id: uuid("id").primaryKey(),
   templateId: uuid("template_id").notNull(),
   name: text("name").notNull(),
 });

@@ -1,35 +1,35 @@
 "use server";
 
 import { db } from "@/lib/db/client";
-import {
-  templates,
-  templateFields,
-  type NewTemplate,
-  type NewTemplateField,
-} from "@/lib/db/schema";
 import { extractFieldsFromDocx } from "@/lib/docx/parser";
+import { sql } from "drizzle-orm";
 
 export async function uploadTemplate(formData: FormData) {
   const name = formData.get("name") as string;
   const file = formData.get("file") as File;
 
+  if (!name || !file) {
+    throw new Error("Missing name or file");
+  }
+
   const buffer = Buffer.from(await file.arrayBuffer());
   const fields = extractFieldsFromDocx(buffer);
 
-  const newTemplate: NewTemplate = { name };
+  // insert template
+  const result = await db.execute<{ id: string }>(sql`
+    insert into templates (name)
+    values (${name})
+    returning id
+  `);
 
-  const [template] = await db
-    .insert(templates)
-    .values(newTemplate)
-    .returning();
+  const templateId = result.rows[0].id;
 
+  // insert fields (SQL ตรง)
   for (const field of fields) {
-    const row: NewTemplateField = {
-      templateId: template.id,
-      name: field,
-    };
-
-    await db.insert(templateFields).values(row);
+    await db.execute(sql`
+      insert into template_fields (template_id, name)
+      values (${templateId}, ${field})
+    `);
   }
 
   return { ok: true };
