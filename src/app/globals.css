@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Document field styles */
+.doc-field {
+  background-color: #fef3c7;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid #f59e0b;
+  font-weight: 500;
+}
+
+.doc-field:hover {
+  background-color: #fde68a;
+  border-color: #d97706;
+  transform: scale(1.02);
+}
+
+.doc-field.active {
+  background-color: #fbbf24;
+  border-color: #b45309;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.3);
+  transform: scale(1.05);
+}

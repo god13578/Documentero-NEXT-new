@@ -7,13 +7,13 @@ function applyValues(html, values) {
   let out = html;
   Object.entries(values).forEach(([key, value]) => {
     const safe =
-      value && value.trim() !== "" ? value : `{${key}}`;
+      value && typeof value === 'string' && value.trim() !== "" ? value : `{${key}}`;
     out = out.replaceAll(`{${key}}`, safe);
   });
   return out;
 }
 
-export default function TemplateEditor({
+export default function TemplateEditorV2({
   templateId,
   templateName,
   onFill,
@@ -37,51 +37,23 @@ export default function TemplateEditor({
   useEffect(() => {
     if (!templateId) return;
 
-    console.log("Loading schema for template:", templateId);
-    
-    // Try V1 schema API first
-    fetch(`/api/templates/${encodeURIComponent(templateId)}/schema`)
+    fetch(`/api/templates/${templateId}/fields`)
       .then((r) => r.json())
       .then((d) => {
-        console.log("Schema response:", d);
-        if (d.ok && d.schema) {
-          // V1 format: array of {variable, label, type}
-          const fieldNames = d.schema.map(s => s.variable);
-          setFields(fieldNames);
+        const f = d || [];
+        // Extract field names from new structure
+        const fieldNames = f.map(field => field.name);
+        setFields(fieldNames);
 
-          const initValues = {};
-          const initLabels = {};
-          fieldNames.forEach((k) => {
-            initValues[k] = "";
-            initLabels[k] = d.schema.find(s => s.variable === k)?.label || k;
-          });
+        const initValues = {};
+        const initLabels = {};
+        fieldNames.forEach((k) => {
+          initValues[k] = "";
+          initLabels[k] = k;
+        });
 
-          setValues(initValues);
-          setLabels(initLabels);
-        } else {
-          // Fallback to fields API
-          console.log("Fallback to fields API");
-          fetch(`/api/fields?template=${encodeURIComponent(templateId)}`)
-            .then((r) => r.json())
-            .then((d) => {
-              console.log("Fields response:", d);
-              const f = d.fields || [];
-              setFields(f);
-
-              const initValues = {};
-              const initLabels = {};
-              f.forEach((k) => {
-                initValues[k] = "";
-                initLabels[k] = k;
-              });
-
-              setValues(initValues);
-              setLabels(initLabels);
-            });
-        }
-      })
-      .catch((error) => {
-        console.error("Error loading schema:", error);
+        setValues(initValues);
+        setLabels(initLabels);
       });
   }, [templateId]);
 
@@ -90,16 +62,9 @@ export default function TemplateEditor({
   ========================= */
   useEffect(() => {
     if (!templateId) return;
-    console.log("Loading preview for template:", templateId);
     fetch(`/api/preview?template=${encodeURIComponent(templateId)}`)
       .then((r) => r.text())
-      .then((html) => {
-        console.log("Preview loaded, length:", html.length);
-        setBasePreview(html);
-      })
-      .catch((error) => {
-        console.error("Error loading preview:", error);
-      });
+      .then(setBasePreview);
   }, [templateId]);
 
   /* =========================
@@ -107,9 +72,6 @@ export default function TemplateEditor({
   ========================= */
   useEffect(() => {
     if (!basePreview) return;
-
-    console.log("Processing preview with basePreview length:", basePreview.length);
-    console.log("Current values:", values);
 
     // 1) merge values
     let html = applyValues(basePreview, values);
@@ -119,9 +81,6 @@ export default function TemplateEditor({
       /<body[^>]*>/,
       '<body style="font-family: THSarabun, sans-serif; font-size: 16px; line-height: 1.5;">'
     );
-
-    // Add doc-field spans for click events
-    html = html.replace(/\{([^}]+)\}/g, '<span class="doc-field" data-field="$1">{$1}</span>');
 
     // 2) focus-only highlight
     if (activeField) {
@@ -136,9 +95,12 @@ export default function TemplateEditor({
       );
     }
 
-    console.log("Final HTML length:", html.length);
-    onPreviewHtml(html);
-  }, [basePreview, values, activeField, onPreviewHtml]);
+    // Update preview container
+    const previewContainer = document.getElementById("preview-container");
+    if (previewContainer) {
+      previewContainer.innerHTML = html;
+    }
+  }, [basePreview, values, activeField]);
 
   /* =========================
      Helpers
@@ -154,22 +116,22 @@ export default function TemplateEditor({
      Handlers
   ========================= */
   function handleFocus(field) {
-  isSwitchingField.current = true;
-  setActiveField(field);
-  scrollToInput(field);
+    isSwitchingField.current = true;
+    setActiveField(field);
+    scrollToInput(field);
 
-  // reset หลัง event loop
-  setTimeout(() => {
-    isSwitchingField.current = false;
-  }, 0);
-}
+    // reset หลัง event loop
+    setTimeout(() => {
+      isSwitchingField.current = false;
+    }, 0);
+  }
 
   function handleBlur() {
-  // ถ้า blur เพราะกำลังสลับ field → อย่า clear
-  if (isSwitchingField.current) return;
+    // ถ้า blur เพราะกำลังสลับ field → อย่า clear
+    if (isSwitchingField.current) return;
 
-  setActiveField(null);
-}
+    setActiveField(null);
+  }
 
   function handleChange(field, value) {
     setValues((prev) => ({ ...prev, [field]: value }));
@@ -185,41 +147,39 @@ export default function TemplateEditor({
   }
 
   const handleGeneratePdf = async () => {
-  try {
-    setGenerateState("loading");
-    setErrorMessage("");
+    try {
+      setGenerateState("loading");
+      setErrorMessage("");
 
-    const res = await fetch("/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        template: templateId, 
-        fields: values, 
-      }),
-    });
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          template: templateId, // ✅ ใช้ templateId
+          fields: values, // ✅ ต้องเป็น values
+        }),
+      });
 
-    if (!res.ok) {
-      throw new Error("Generate failed");
+      if (!res.ok) {
+        throw new Error("Generate failed");
+      }
+
+      const blob = await res.blob();
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "document.pdf";
+      a.click();
+      window.URL.revokeObjectURL(url);
+
+      setGenerateState("idle");
+    } catch (err) {
+      console.error(err);
+      setGenerateState("error");
+      setErrorMessage("ไม่สามารถสร้างเอกสารได้ กรุณาลองใหม่");
     }
-
-    const blob = await res.blob();
-
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "document.pdf";
-    a.click();
-    window.URL.revokeObjectURL(url);
-
-    setGenerateState("idle");
-  } catch (err) {
-    console.error(err);
-    setGenerateState("error");
-    setErrorMessage("ไม่สามารถสร้างเอกสารได้ กรุณาลองใหม่");
-  }
-};
-
-
+  };
 
   /* =========================
      Render
@@ -251,14 +211,11 @@ export default function TemplateEditor({
             : "ดาวน์โหลด PDF"}
         </button>
 
-
         {generateState === "error" && (
           <div style={{ color: "red", marginTop: 8 }}>
             ❌ {errorMessage}
           </div>
         )}
-
-
 
       </div>
 

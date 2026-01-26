@@ -1,0 +1,66 @@
+import { NextResponse } from "next/server";
+import { db } from "@/lib/db/client";
+import { templates, templateFields } from "@/lib/db/schema";
+import { randomUUID } from "crypto";
+import fs from "fs/promises";
+import path from "path";
+import mammoth from "mammoth";
+
+export async function POST(request: Request) {
+  try {
+    const formData = await request.formData();
+    const file = formData.get("file") as File;
+    const name = formData.get("name") as string;
+
+    if (!file || !name) {
+      return NextResponse.json({ error: "File and name are required" }, { status: 400 });
+    }
+
+    // Save template file
+    const templateId = randomUUID();
+    const fileName = `${templateId}.docx`;
+    const uploadPath = path.join(process.cwd(), "public", "templates", fileName);
+    
+    // Ensure templates directory exists
+    await fs.mkdir(path.dirname(uploadPath), { recursive: true });
+    
+    // Save file
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    await fs.writeFile(uploadPath, buffer);
+
+    // Extract fields from template
+    const result = await mammoth.extractRawText({ buffer });
+    const text = result.value;
+    
+    // Find template fields (support Thai characters)
+    const fieldMatches = text.match(/\{[^\}]+\}/g) || [];
+    const uniqueFields = Array.from(new Set(fieldMatches.map(f => f.slice(1, -1))));
+
+    // Save template to database
+    await db.insert(templates).values({
+      id: templateId,
+      name,
+      docxPath: uploadPath,
+    });
+
+    // Save template fields with proper IDs
+    for (const fieldName of uniqueFields) {
+      await db.insert(templateFields).values({
+        id: randomUUID(), // ✅ เพิ่ม ID ให้แต่ละฟิลด์
+        templateId,
+        name: fieldName,
+      });
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      templateId,
+      fields: uniqueFields 
+    });
+
+  } catch (error) {
+    console.error("Error uploading template:", error);
+    return NextResponse.json({ error: "Failed to upload template" }, { status: 500 });
+  }
+}

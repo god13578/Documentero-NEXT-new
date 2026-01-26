@@ -20,11 +20,12 @@ export async function createDocument(
   templateId: string,
   formData: FormData
 ) {
-  const userId = getSession();
+  const userId = await getSession();
   if (!userId) {
     throw new Error("ไม่ได้เข้าสู่ระบบ");
   }
 
+  // 1. โหลด template
   const template = await db.query.templates.findFirst({
     where: eq(templates.id, templateId),
   });
@@ -33,45 +34,48 @@ export async function createDocument(
     throw new Error("ไม่พบ Template");
   }
 
+  // 2. โหลด field
   const fields = await db.query.templateFields.findMany({
     where: eq(templateFields.templateId, templateId),
   });
 
-  const data: Record<string, any> = {};
+  // 3. map formData → object
+  const values: Record<string, string> = {};
   for (const field of fields) {
-    data[field.fieldKey] = formData
-      .get(field.fieldKey)
-      ?.toString() ?? "";
+    values[field.name] = formData.get(field.name)?.toString() ?? "";
   }
 
+  // 4. เตรียม path
   const docId = randomUUID();
-  const outputPath = path.join(
+
+  const docxPath = path.join(
     process.cwd(),
     "storage/documents",
     `${docId}.docx`
   );
 
-  await generateDocx(template.docxPath, data, outputPath);
-  // 1) แปลง DOCX → HTML
-  const html = await docxToHtml(outputPath);
+  const pdfPath = path.join(
+    process.cwd(),
+    "storage/documents",
+    `${docId}.pdf`
+  );
 
-  // 2) สร้าง HTML สำหรับ PDF (ฝังฟอนต์จากโปรเจ็กต์)
+  // 5. สร้าง DOCX
+  await generateDocx(template.docxPath, values, docxPath);
+
+  // 6. DOCX → HTML → PDF
+  const html = await docxToHtml(docxPath);
   const pdfHtml = buildPdfHtml(html);
-
-  // 3) กำหนด path PDF
-  const pdfPath = outputPath.replace(".docx", ".pdf");
-
-  // 4) สร้าง PDF จริง
   await generatePdfFromHtml(pdfHtml, pdfPath);
 
-
+  // 7. save document
   await db.insert(documents).values({
     id: docId,
     templateId,
     createdBy: userId,
-    title: data.subject || "เอกสาร",
-    data,
-    docxPath: outputPath,
+    title: values.subject || template.name,
+    data: values,
+    docxPath,
     pdfPath,
   });
 

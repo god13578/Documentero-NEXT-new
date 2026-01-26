@@ -37,9 +37,7 @@ export async function uploadTemplate(
   for (const field of fields) {
     await db.insert(templateFields).values({
       templateId: id,
-      fieldKey: field,
-      fieldLabel: field,
-      fieldType: "text",
+      name: field, // ใช้ name แบบเดิม
     });
   }
 

@@ -8,6 +8,27 @@
       "when": 1768363422123,
       "tag": "0000_abnormal_supreme_intelligence",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1768982889978,
+      "tag": "0001_shallow_triathlon",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1769069002449,
+      "tag": "0002_little_ben_grimm",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1769144987697,
+      "tag": "0003_sharp_microbe",
+      "breakpoints": true
     }
   ]
 }
