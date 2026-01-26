@@ -80,7 +80,9 @@ export async function GET(
       return NextResponse.json({ ok: false, error: "Template not found" }, { status: 404 });
     }
 
-    const filePath = templateRecord[0].docxPath;
+    const filePath = path.isAbsolute(templateRecord[0].docxPath)
+      ? templateRecord[0].docxPath
+      : path.join(process.cwd(), templateRecord[0].docxPath);
 
     // Extract variables from DOCX
     const variables = extractVariablesSuper(filePath);

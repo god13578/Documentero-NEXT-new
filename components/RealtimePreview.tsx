@@ -1,96 +1,153 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
+import React, { useMemo, useEffect, useRef } from 'react';
+import { formatThaiDate } from '../utils/thaidate-helper';
+import { FieldConfigMap } from './DynamicFieldBuilder';
 
 interface RealtimePreviewProps {
-  templateId: string;
-  values: Record<string, string>;
+  htmlTemplate: string; // The raw HTML from docx-to-html (still contains {{keys}})
+  values: Record<string, any>;
+  fieldConfig: FieldConfigMap;
+  onFieldClick: (field: string) => void;
+  hoveredField?: string | null;
 }
 
-export default function RealtimePreview({ templateId, values }: RealtimePreviewProps) {
-  const [preview, setPreview] = useState<string>("");
-  const [loading, setLoading] = useState(false);
+export default function RealtimePreview({ 
+  htmlTemplate, 
+  values, 
+  fieldConfig,
+  onFieldClick,
+  hoveredField 
+}: RealtimePreviewProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    async function fetchPreview() {
-      setLoading(true);
-      try {
-        const response = await fetch(`/api/preview?template=${templateId}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ values }),
-        });
+  // Process HTML: Inject values and wrapper spans
+  const processedHtml = useMemo(() => {
+    if (!htmlTemplate) return '';
 
-        if (response.ok) {
-          const html = await response.text();
-          setPreview(html);
+    // Regex to find {{variable}}
+    // We replace it with <span data-field="variable" class="...">CurrentValue</span>
+    return htmlTemplate.replace(/\{([^}]+)\}/g, (match, p1) => {
+      const fieldName = p1.trim();
+      let value = values[fieldName];
+
+      // Format value based on config
+      const config = fieldConfig[fieldName];
+      
+      if (value) {
+        if (config?.type === 'date') {
+          value = formatThaiDate(value, 'short');
+        } else if (config?.type === 'fulldate') {
+          value = formatThaiDate(value, 'full');
         }
-      } catch (error) {
-        console.error("Error fetching preview:", error);
-      } finally {
-        setLoading(false);
       }
-    }
 
-    if (templateId) {
-      fetchPreview();
-    }
-  }, [templateId, values]);
+      const displayValue = value || match; // Show {{key}} if empty, or show value
+      const isFilled = !!value;
 
+      // Class for styling
+      // bg-yellow-200 for highlighting fields
+      // hover:bg-yellow-400 for interaction
+      const classes = `
+        doc-field 
+        ${isFilled ? 'bg-yellow-100 text-black' : 'bg-yellow-300 text-gray-700'} 
+        ${hoveredField === fieldName ? 'bg-orange-400 text-white font-bold' : ''}
+        px-1 rounded cursor-pointer 
+        border-b-2 border-yellow-400
+        hover:bg-yellow-400 transition-colors
+        inline-block min-w-[30px] text-center
+      `;
+
+      return `<span 
+        data-field="${fieldName}" 
+        class="${classes}"
+        title="แก้ไข ${fieldName}"
+      >${displayValue}</span>`;
+    });
+  }, [htmlTemplate, values, fieldConfig, hoveredField]);
+
+  // Attach event listeners for Click-to-Edit
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const field = target.getAttribute('data-field');
+      if (field) {
+        e.stopPropagation();
+        onFieldClick(field);
+      }
+    };
+
+    container.addEventListener('click', handleClick);
+    return () => container.removeEventListener('click', handleClick);
+  }, [onFieldClick, processedHtml]);
+
+  // Add global styles for the preview content to ensure it looks like a document
   return (
-    <div style={{
-      border: "2px solid #e2e8f0",
-      borderRadius: 8,
-      padding: 20,
-      minHeight: 400,
-      backgroundColor: "#f8fafc"
-    }}>
-      {loading ? (
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: 300,
-          color: "#718096"
-        }}>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 24, marginBottom: 8 }}>⏳</div>
-            <p>กำลังโหลดตัวอย่าง...</p>
-          </div>
-        </div>
-      ) : preview ? (
-        <div
+    <div className="w-full h-full overflow-auto bg-gray-100">
+      <div className="max-w-[210mm] mx-auto bg-white shadow-lg min-h-[297mm]" style={{ 
+        padding: '25mm 20mm 25mm 30mm',
+        boxSizing: 'border-box',
+        margin: '12px auto'
+      }}>
+        <div 
+          ref={containerRef}
+          className="document-content"
           style={{
-            fontFamily: "THSarabun, sans-serif",
-            fontSize: "16px",
-            lineHeight: "1.5",
-            color: "#2d3748",
-            backgroundColor: "white",
-            padding: "20px",
-            borderRadius: "4px",
-            minHeight: "300px"
+            fontFamily: '"TH Sarabun New", "Sarabun", Arial, sans-serif',
+            fontSize: '16pt',
+            lineHeight: '1.6',
+            color: '#000',
+            columnWidth: '210mm',
+            columnGap: '0'
           }}
-          dangerouslySetInnerHTML={{ __html: preview }}
+          dangerouslySetInnerHTML={{ __html: processedHtml }}
         />
-      ) : (
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: 300,
-          color: "#718096"
-        }}>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>📄</div>
-            <p>ตัวอย่างเอกสารจะปรากฏที่นี่</p>
-            <p style={{ fontSize: 14, marginTop: 8 }}>
-              กรอกข้อมูลเพื่อดูตัวอย่างแบบ real-time
-            </p>
-          </div>
-        </div>
-      )}
+        
+        {/* Override component styles with API styles */}
+        <style jsx global>{`
+          .document-content p {
+            margin: 0 0 8px 0;
+          }
+          
+          .document-content table {
+            border-collapse: collapse;
+            width: 100%;
+          }
+          
+          .document-content td, .document-content th {
+            border: 1px solid black;
+            padding: 4px 8px;
+          }
+          
+          .document-content img {
+            max-width: 110px;
+            height: auto;
+            display: block;
+            margin: 0 auto 8px auto;
+          }
+          
+          /* Word-like field styling */
+          .doc-field {
+            background: rgba(255, 235, 160, 0.25) !important;
+            padding: 1px 3px !important;
+            border-radius: 3px !important;
+            cursor: pointer !important;
+            transition: background 120ms ease, box-shadow 120ms ease !important;
+          }
+          
+          .doc-field:hover {
+            background: rgba(255, 220, 120, 0.35) !important;
+          }
+          
+          .doc-field.bg-orange-400 {
+            background: rgba(255, 200, 90, 0.7) !important;
+            box-shadow: 0 0 0 2px rgba(255, 170, 60, 0.6) !important;
+          }
+        `}</style>
+      </div>
     </div>
   );
 }

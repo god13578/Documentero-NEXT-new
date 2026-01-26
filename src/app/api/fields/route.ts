@@ -27,41 +27,30 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Try to find template file by name
-    const templatesDir = path.join(process.cwd(), "templates");
-    const possibleNames = [
-      template,
-      `${template}.docx`,
-      template.replace(/\.docx$/i, "") + ".docx"
-    ];
+    // Find template path from DB (by id or name)
+    const { db } = await import("@/lib/db/client");
+    const { templates } = await import("@/lib/db/schema");
+    const { eq } = await import("drizzle-orm");
 
-    let filePath: string | null = null;
-    for (const name of possibleNames) {
-      const testPath = path.join(templatesDir, name);
-      try {
-        await fs.access(testPath);
-        filePath = testPath;
-        break;
-      } catch {
-        continue;
-      }
-    }
+    let templateRecord = await db
+      .select()
+      .from(templates)
+      .where(eq(templates.id, template))
+      .limit(1);
 
-    if (!filePath) {
-      // If not found in templates folder, try to get from database
-      const { db } = await import("@/lib/db/client");
-      const { templates } = await import("@/lib/db/schema");
-      const { eq } = await import("drizzle-orm");
-      
-      const templateRecord = await db
+    if (!templateRecord[0]) {
+      templateRecord = await db
         .select()
         .from(templates)
         .where(eq(templates.name, template))
         .limit(1);
+    }
 
-      if (templateRecord[0]) {
-        filePath = templateRecord[0].docxPath;
-      }
+    let filePath: string | null = null;
+    if (templateRecord[0]?.docxPath) {
+      filePath = path.isAbsolute(templateRecord[0].docxPath)
+        ? templateRecord[0].docxPath
+        : path.join(process.cwd(), templateRecord[0].docxPath);
     }
 
     if (!filePath) {

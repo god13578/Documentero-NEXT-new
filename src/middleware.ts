@@ -26,5 +26,5 @@ export function middleware(req: NextRequest) {
  * ถ้าไม่มี matcher → middleware จะ intercept ทุกอย่าง
  */
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/).*)"],
 };

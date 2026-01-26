@@ -83,10 +83,11 @@ export async function POST(
     await db.insert(documents).values({
       id: documentId,
       templateId: templateId,
-      createdBy: "system", // You should get this from authentication
+      name: `${template[0].name} - ${new Date().toISOString()}`,
+      docxPath,
+      createdBy: "system",
       title: `${template[0].name} - ${new Date().toISOString()}`,
       data: values,
-      docxPath,
       pdfPath,
     });
 

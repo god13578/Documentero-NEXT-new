@@ -4,7 +4,7 @@ import { templates, templateFields } from "@/lib/db/schema";
 import { randomUUID } from "crypto";
 import fs from "fs/promises";
 import path from "path";
-import mammoth from "mammoth";
+import { extractFieldsFromDocx } from "@/lib/document/parser";
 
 export async function POST(request: Request) {
   try {
@@ -30,24 +30,22 @@ export async function POST(request: Request) {
     await fs.writeFile(uploadPath, buffer);
 
     // Extract fields from template
-    const result = await mammoth.extractRawText({ buffer });
-    const text = result.value;
-    
-    // Find template fields (support Thai characters)
-    const fieldMatches = text.match(/\{[^\}]+\}/g) || [];
-    const uniqueFields = Array.from(new Set(fieldMatches.map(f => f.slice(1, -1))));
+    const uniqueFields = extractFieldsFromDocx(buffer);
 
     // Save template to database
     await db.insert(templates).values({
       id: templateId,
+      userId: 1,
       name,
       docxPath: uploadPath,
+      originalName: file.name,
+      fieldConfig: {},
     });
 
     // Save template fields with proper IDs
     for (const fieldName of uniqueFields) {
       await db.insert(templateFields).values({
-        id: randomUUID(), // ✅ เพิ่ม ID ให้แต่ละฟิลด์
+        id: randomUUID(),
         templateId,
         name: fieldName,
       });
