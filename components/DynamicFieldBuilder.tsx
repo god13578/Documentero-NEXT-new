@@ -68,7 +68,7 @@ export default function DynamicFieldBuilder({ fields, values, fieldConfig, onCha
                     <option value="text">ข้อความ (Text)</option>
                     <option value="textarea">ข้อความยาว (Text Area)</option>
                     <option value="number">ตัวเลข (Number)</option>
-                    <option value="date">วันที่ย่อ (6 ม.ค. 2568)</option>
+                    <option value="date">วันที่ย่อ (6 มกราคม 2568)</option>
                     <option value="fulldate">วันที่เต็ม (วันศุกร์ที่ 6 มกราคม 2568)</option>
                     <option value="select">ตัวเลือก (Dropdown)</option>
                   </select>
