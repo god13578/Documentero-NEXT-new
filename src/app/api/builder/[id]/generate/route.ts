@@ -14,32 +14,57 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const formData = await request.formData();
     const templateId = params.id;
+    let values: Record<string, string> = {};
+    let templateBuffer: Buffer;
+    let templateName: string = templateId;
 
-    // Get template from database
-    const template = await db
-      .select()
-      .from(templates)
-      .where(eq(templates.id, templateId))
-      .limit(1);
+    // Try to get template from database first
+    try {
+      const template = await db
+        .select()
+        .from(templates)
+        .where(eq(templates.id, templateId))
+        .limit(1);
 
-    if (!template[0]) {
-      return NextResponse.json({ error: "ไม่พบ Template" }, { status: 404 });
+      if (template[0]) {
+        // Read template file from database path
+        templateBuffer = await fs.readFile(template[0].docxPath);
+        templateName = template[0].name;
+      } else {
+        // Fallback to public/templates
+        const fallbackPath = path.join(process.cwd(), "public", "templates", `${templateId}.docx`);
+        if (!fs.existsSync(fallbackPath)) {
+          return NextResponse.json({ error: "Template not found" }, { status: 404 });
+        }
+        templateBuffer = await fs.readFile(fallbackPath);
+      }
+    } catch (dbError) {
+      // Database error, fallback to public/templates
+      const fallbackPath = path.join(process.cwd(), "public", "templates", `${templateId}.docx`);
+      if (!fs.existsSync(fallbackPath)) {
+        return NextResponse.json({ error: "Template not found" }, { status: 404 });
+      }
+      templateBuffer = await fs.readFile(fallbackPath);
     }
 
-    // Read template file
-    const templateBuffer = await fs.readFile(template[0].docxPath);
+    // Parse values from JSON or formData
+    const contentType = request.headers.get("content-type");
+    if (contentType?.includes("application/json")) {
+      const jsonData = await request.json();
+      values = jsonData.values || {};
+    } else {
+      // Legacy formData support
+      const formData = await request.formData();
+      formData.forEach((value, key) => {
+        values[key] = String(value);
+      });
+    }
+
     const zip = new PizZip(templateBuffer);
     const doc = new Docxtemplater(zip, {
       paragraphLoop: true,
       linebreaks: true,
-    });
-
-    // Convert formData to values
-    const values: Record<string, string> = {};
-    formData.forEach((value, key) => {
-      values[key] = String(value);
     });
 
     // Fill template with data
@@ -79,23 +104,27 @@ export async function POST(
 
     await fs.writeFile(docxPath, filledBuffer);
 
-    // Save to database
-    await db.insert(documents).values({
-      id: documentId,
-      templateId: templateId,
-      name: `${template[0].name} - ${new Date().toISOString()}`,
-      docxPath,
-      createdBy: "system",
-      title: `${template[0].name} - ${new Date().toISOString()}`,
-      data: values,
-      pdfPath,
-    });
+    // Save to database (optional)
+    try {
+      await db.insert(documents).values({
+        id: documentId,
+        templateId: templateId,
+        name: `${templateName} - ${new Date().toISOString()}`,
+        docxPath,
+        createdBy: "system",
+        title: `${templateName} - ${new Date().toISOString()}`,
+        data: values,
+        pdfPath,
+      });
+    } catch (dbError) {
+      console.warn("Failed to save to database:", dbError);
+    }
 
     // Return file for download
     return new NextResponse(filledBuffer, {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "Content-Disposition": `attachment; filename="${template[0].name}.docx"`,
+        "Content-Disposition": `attachment; filename="${templateName}.docx"`,
       },
     });
 

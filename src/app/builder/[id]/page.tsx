@@ -1,20 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import DynamicFieldBuilder, { FieldConfigMap } from '../../../../components/DynamicFieldBuilder';
-import RealtimePreview from '../../../../components/RealtimePreview';
-import { formatThaiDate } from '../../../../utils/thaidate-helper';
-import { ArrowLeft, Save, Download, FileText } from 'lucide-react';
+import ModernBuilderLayout from '../../../../components/ModernBuilderLayout';
+import { FieldConfigMap } from '../../../../components/DynamicFieldBuilder';
+import { FileText, Loader2 } from 'lucide-react';
 
 interface Template {
   id: string;
   name: string;
-  docxPath: string;
-  originalName?: string;
-  fieldConfig?: FieldConfigMap;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export default function BuilderPage() {
@@ -29,232 +23,105 @@ export default function BuilderPage() {
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [htmlTemplate, setHtmlTemplate] = useState<string>('');
 
-  // Load template and fields
+  // Default preview mode เป็น 'pdf-live'
+  const [previewMode, setPreviewMode] = useState<'word' | 'pdf-live'>('pdf-live');
+
   useEffect(() => {
     if (!templateId) return;
-
-    async function loadData() {
+    const loadData = async () => {
       try {
-        // Load template info
-        const templateRes = await fetch(`/api/templates/${templateId}`);
-        if (templateRes.ok) {
-          const templateData = await templateRes.json();
-          setTemplate(templateData);
-          setFieldConfig(templateData.fieldConfig || {});
-        }
+        setLoading(true);
+        // Load Template Info
+        const tmplRes = await fetch(`/api/templates/${templateId}`);
+        if (!tmplRes.ok) throw new Error('Failed to load template');
+        const tmplData = await tmplRes.json();
+        setTemplate(tmplData);
+        setFieldConfig(tmplData.fieldConfig || {});
 
-        // Load fields from template
-        const fieldsRes = await fetch(`/api/templates/${templateId}/schema`);
-        if (fieldsRes.ok) {
-          const schemaData = await fieldsRes.json();
+        // Load Schema
+        const schemaRes = await fetch(`/api/templates/${templateId}/schema`);
+        if (schemaRes.ok) {
+          const schemaData = await schemaRes.json();
           if (schemaData.ok && schemaData.schema) {
             const fieldNames = schemaData.schema.map((s: any) => s.variable);
             setFields(fieldNames);
-            
-            // Initialize values
+            // Init values
             const initialValues: Record<string, any> = {};
-            fieldNames.forEach((field: string) => {
-              initialValues[field] = '';
-            });
+            fieldNames.forEach((field: string) => initialValues[field] = '');
             setValues(initialValues);
           }
-        }
-
-        // Load HTML preview
-        const previewRes = await fetch(`/api/preview?template=${templateId}`);
-        if (previewRes.ok) {
-          const html = await previewRes.text();
-          setHtmlTemplate(html);
         }
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
         setLoading(false);
       }
-    }
-
+    };
     loadData();
   }, [templateId]);
 
-  const handleValueChange = (key: string, value: any) => {
-    setValues(prev => ({ ...prev, [key]: value }));
-  };
-
-  const handleConfigChange = (newConfig: FieldConfigMap) => {
-    setFieldConfig(newConfig);
-  };
-
-  const handleFieldClick = (field: string) => {
-    setFocusedField(field);
+  const handleDownload = async (format: 'docx' | 'pdf') => {
+    if (!template) return;
+    const endpoint = format === 'pdf' ? 'generate-pdf' : 'generate';
+    try {
+      const res = await fetch(`/api/builder/${templateId}/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values }),
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${template.name}.${format === 'pdf' ? 'pdf' : 'docx'}`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      } else {
+        alert('เกิดข้อผิดพลาดในการดาวน์โหลด');
+      }
+    } catch (e) {
+      alert('Error downloading file');
+    }
   };
 
   const handleSave = async () => {
     if (!template) return;
-    
     setSaving(true);
     try {
-      const response = await fetch(`/api/templates/${templateId}`, {
+      await fetch(`/api/templates/${templateId}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fieldConfig,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fieldConfig }),
       });
-
-      if (response.ok) {
-        alert('บันทึกการตั้งค่าสำเร็จแล้ว');
-      } else {
-        alert('บันทึกไม่สำเร็จ กรุณาลองใหม่');
-      }
-    } catch (error) {
-      console.error('Save error:', error);
-      alert('เกิดข้อผิดพลาดในการบันทึก');
+      alert('บันทึกเรียบร้อย');
+    } catch (e) {
+      alert('บันทึกไม่สำเร็จ');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleGenerateDocx = async () => {
-    if (!template) return;
-
-    try {
-      const response = await fetch(`/api/builder/${templateId}/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          values,
-        }),
-      });
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${template.name}.docx`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-      } else {
-        alert('สร้างเอกสารไม่สำเร็จ');
-      }
-    } catch (error) {
-      console.error('Generate error:', error);
-      alert('เกิดข้อผิดพลาดในการสร้างเอกสาร');
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">กำลังโหลด...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!template) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-700 mb-2">ไม่พบ Template</h2>
-          <p className="text-gray-500">Template ที่คุณต้องการไม่มีอยู่ในระบบ</p>
-          <button
-            onClick={() => router.back()}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            กลับ
-          </button>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600" /></div>;
+  if (!template) return <div>Template not found</div>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-full px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.back()}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Document Builder</h1>
-                <p className="text-sm text-gray-500">{template.name}</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {saving ? 'กำลังบันทึก...' : 'บันทึก'}
-              </button>
-              <button
-                onClick={handleGenerateDocx}
-                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                ดาวน์โหลด DOCX
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex h-[calc(100vh-73px)]">
-        {/* Sidebar - Field Builder */}
-        <div className="w-1/2 bg-white border-r overflow-y-auto">
-          <div className="sticky top-0 bg-white border-b p-4 z-10">
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">ตั้งค่า Field</h2>
-            <p className="text-sm text-gray-500">คลิกที่ช่องสีเหลืองในเอกสารเพื่อแก้ไข</p>
-          </div>
-          
-          <DynamicFieldBuilder
-            fields={fields}
-            values={values}
-            fieldConfig={fieldConfig}
-            onChange={handleValueChange}
-            onConfigChange={handleConfigChange}
-            focusedField={focusedField}
-          />
-        </div>
-
-        {/* Preview */}
-        <div className="w-1/2 overflow-hidden">
-          <div className="sticky top-0 bg-white border-b p-4 z-10">
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Live Preview (Word View)</h2>
-            <p className="text-sm text-gray-500">คลิกที่ช่องสีเหลืองเพื่อแก้ไขข้อมูล • เทียบข้างๆ กับช่องกรอก</p>
-          </div>
-          
-          <div className="h-full overflow-hidden">
-            <RealtimePreview
-              htmlTemplate={htmlTemplate}
-              values={values}
-              fieldConfig={fieldConfig}
-              onFieldClick={handleFieldClick}
-              hoveredField={focusedField}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
+    <ModernBuilderLayout
+      templateId={templateId}
+      templateName={template.name}
+      fields={fields}
+      values={values}
+      fieldConfig={fieldConfig}
+      focusedField={focusedField}
+      previewMode={previewMode}
+      onValueChange={(k, v) => setValues(prev => ({ ...prev, [k]: v }))}
+      onConfigChange={setFieldConfig}
+      onSetPreviewMode={setPreviewMode}
+      onSave={handleSave}
+      saving={saving}
+      onGenerateDocx={() => handleDownload('docx')}
+      onGeneratePdf={() => handleDownload('pdf')}
+    />
   );
 }
