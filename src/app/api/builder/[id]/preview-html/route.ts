@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import mammoth from "mammoth";
-import PizZip from "pizzip";
-import Docxtemplater from "docxtemplater";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -15,23 +13,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: "Template not found" }, { status: 404 });
     }
 
-    // 1. Fill Data using Docxtemplater first (to replace {{vars}} with text)
-    const content = fs.readFileSync(docxPath, "binary");
-    const zip = new PizZip(content);
-    const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
-    
-    // Replace null/undefined with empty string to prevent "undefined" text
-    const safeValues = { ...values };
-    Object.keys(safeValues).forEach(key => {
-        if (safeValues[key] === null || safeValues[key] === undefined) safeValues[key] = "";
-    });
-
-    doc.setData(safeValues);
-    doc.render();
-    const filledBuffer = doc.getZip().generate({ type: "nodebuffer" });
-
-    // 2. Convert filled DOCX to HTML using Mammoth
-    const result = await mammoth.convertToHtml({ buffer: filledBuffer });
+    // Convert raw DOCX to HTML to preserve {placeholders}
+    const result = await mammoth.convertToHtml({ path: docxPath });
     
     return NextResponse.json({ html: result.value });
   } catch (error: any) {

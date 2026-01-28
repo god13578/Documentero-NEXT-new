@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { ArrowLeft, Save, Download, FileText, Monitor, FileType } from 'lucide-react';
+import { ArrowLeft, Save, Download, FileText, Eye, Printer } from 'lucide-react';
 import DynamicFieldBuilder, { FieldConfigMap } from './DynamicFieldBuilder';
 import PdfPreview from './PdfPreview';
 import RealtimePreview from './RealtimePreview';
@@ -11,6 +11,7 @@ interface Props {
   templateName: string;
   fields: string[];
   values: Record<string, any>;
+  previewValues: Record<string, any>; // Added for debounced preview
   fieldConfig: FieldConfigMap;
   htmlTemplate: string;
   focusedField: string | null;
@@ -23,96 +24,91 @@ interface Props {
   onGeneratePdf: () => void;
 }
 
-export default function ModernBuilderLayout({
-  templateId, templateName, fields, values, fieldConfig,
-  htmlTemplate, focusedField, saving,
-  onValueChange, onConfigChange, onFieldClick,
-  onSave, onGenerateDocx, onGeneratePdf
-}: Props) {
+export default function ModernBuilderLayout(props: Props) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'web' | 'pdf'>('web');
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100 overflow-hidden font-sans">
+    <div className="h-screen w-screen overflow-hidden flex flex-col bg-gray-100 font-sans">
       
-      {/* 1. Header Bar */}
-      <header className="h-14 bg-white border-b flex items-center justify-between px-4 shrink-0 shadow-sm z-30">
-        <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="p-1.5 hover:bg-gray-100 rounded text-gray-500">
-            <ArrowLeft size={18} />
+      {/* HEADER */}
+      <header className="h-16 bg-white border-b flex items-center justify-between px-6 shrink-0 z-30 shadow-sm">
+        <div className="flex items-center gap-4">
+          <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 rounded-full text-gray-500">
+            <ArrowLeft size={20} />
           </button>
-          <span className="font-bold text-gray-700 flex items-center gap-2 text-sm">
-            <FileText size={16} className="text-blue-600" /> {templateName}
-          </span>
+          <h1 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <FileText className="text-indigo-600" /> {props.templateName}
+          </h1>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button onClick={onSave} disabled={saving} className="px-3 py-1.5 text-xs font-medium border rounded hover:bg-gray-50 text-gray-600">
-            {saving ? 'Saving...' : 'Save Config'}
+        <div className="flex items-center gap-3">
+          <button onClick={props.onSave} disabled={props.saving} className="px-4 py-2 text-sm border rounded hover:bg-gray-50">
+            {props.saving ? 'Saving...' : 'Save Config'}
           </button>
-          <div className="h-5 w-px bg-gray-300 mx-1" />
-          <button onClick={onGenerateDocx} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 shadow-sm">
-            <Download size={14} /> Word
+          {/* Download Buttons Restored */}
+          <button onClick={props.onGenerateDocx} className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 shadow-sm transition">
+            <Download size={16} /> Word
           </button>
-          <button onClick={onGeneratePdf} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded hover:bg-red-700 shadow-sm">
-            <Download size={14} /> PDF
+          <button onClick={props.onGeneratePdf} className="flex items-center gap-2 px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 shadow-sm transition">
+            <Download size={16} /> PDF
           </button>
         </div>
       </header>
 
-      {/* 2. Main Workspace (Split Layout) */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* BODY - Split Layout */}
+      <div className="flex-1 flex flex-row overflow-hidden">
         
-        {/* LEFT PANEL: Inputs (Scrollable) */}
-        <div className="w-[400px] bg-white border-r border-gray-200 flex flex-col z-20 shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">
-          <div className="px-4 py-3 border-b bg-gray-50/80 backdrop-blur sticky top-0 z-10">
-            <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Variables</h2>
+        {/* LEFT: Inputs - Forced Width */}
+        <div className="min-w-[400px] w-[400px] bg-white border-r flex flex-col z-20 shadow-xl">
+          <div className="p-4 border-b bg-gray-50 font-semibold text-gray-700 sticky top-0">
+            Data Entry
           </div>
           <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-            <DynamicFieldBuilder
-              fields={fields}
-              values={values}
-              fieldConfig={fieldConfig}
-              onChange={onValueChange}
-              onConfigChange={onConfigChange}
-              focusedField={focusedField}
+            <DynamicFieldBuilder 
+              fields={props.fields}
+              values={props.values}
+              fieldConfig={props.fieldConfig}
+              onChange={props.onValueChange}
+              onConfigChange={props.onConfigChange}
+              focusedField={props.focusedField}
             />
           </div>
         </div>
 
-        {/* RIGHT PANEL: Preview (Scrollable + Tabs) */}
-        <div className="flex-1 bg-gray-100 flex flex-col overflow-hidden relative">
+        {/* RIGHT: Preview - Forced Flex */}
+        <div className="flex-1 w-full flex flex-col bg-gray-100 relative overflow-hidden">
           
-          {/* TABS (Sticky Top of Preview) */}
-          <div className="h-12 flex items-center justify-center bg-white/80 backdrop-blur border-b z-10 shrink-0">
-            <div className="flex p-1 bg-gray-200/50 rounded-lg">
+          {/* Tabs Bar - Sticky at Top */}
+          <div className="h-12 bg-white/80 backdrop-blur border-b flex justify-center items-center shrink-0 z-10 sticky top-0">
+            <div className="flex bg-gray-200 p-1 rounded-lg">
               <button 
                 onClick={() => setActiveTab('web')}
-                className={`flex items-center gap-2 px-4 py-1 text-xs font-bold rounded-md transition-all ${activeTab === 'web' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`px-4 py-1 text-xs font-bold rounded ${activeTab === 'web' ? 'bg-white shadow text-indigo-600' : 'text-gray-500'}`}
               >
-                <Monitor size={14} /> Live Web
+                <Eye size={14} className="inline mr-1"/> Live Web (Fast)
               </button>
               <button 
                 onClick={() => setActiveTab('pdf')}
-                className={`flex items-center gap-2 px-4 py-1 text-xs font-bold rounded-md transition-all ${activeTab === 'pdf' ? 'bg-white shadow text-red-600' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`px-4 py-1 text-xs font-bold rounded ${activeTab === 'pdf' ? 'bg-white shadow text-red-600' : 'text-gray-500'}`}
               >
-                <FileType size={14} /> PDF Print
+                <Printer size={14} className="inline mr-1"/> PDF Print
               </button>
             </div>
           </div>
 
-          {/* PREVIEW CONTENT */}
+          {/* Content Area */}
           <div className="flex-1 overflow-y-auto p-8 flex justify-center custom-scrollbar">
-            <div className={`transition-all duration-300 w-full max-w-[850px] ${activeTab === 'pdf' ? 'h-full' : ''}`}>
+            <div className={`transition-all duration-300 w-full max-w-[850px] ${activeTab === 'pdf' ? 'h-full' : 'h-fit min-h-[1000px]'}`}>
               {activeTab === 'web' ? (
                 <RealtimePreview 
-                  htmlTemplate={htmlTemplate} 
-                  values={values} 
-                  onFieldClick={onFieldClick} 
+                  htmlTemplate={props.htmlTemplate} 
+                  values={props.previewValues} // Use debounced values
+                  onFieldClick={props.onFieldClick} 
                 />
               ) : (
-                <div className="bg-white shadow-xl rounded h-full overflow-hidden border">
-                  <PdfPreview templateId={templateId} values={values} />
+                <div className="bg-white h-full shadow-lg rounded overflow-hidden">
+                  <PdfPreview templateId={props.templateId} values={props.values} />
                 </div>
               )}
             </div>

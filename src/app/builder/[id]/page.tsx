@@ -9,37 +9,43 @@ import { formatThaiDate } from '../../../../utils/thaidate-helper';
 export default function BuilderPage() {
   const params = useParams();
   const templateId = params?.id as string;
+  
   const [template, setTemplate] = useState<any>(null);
   const [fields, setFields] = useState<string[]>([]);
   const [values, setValues] = useState<Record<string, any>>({});
+  const [debouncedValues, setDebouncedValues] = useState<Record<string, any>>({}); // For Preview
   const [fieldConfig, setFieldConfig] = useState<FieldConfigMap>({});
-  const [htmlTemplate, setHtmlTemplate] = useState<string>(''); // Stores raw HTML from Docx
+  const [htmlTemplate, setHtmlTemplate] = useState<string>('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Debounce Logic: Update preview values only after user stops typing for 500ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedValues(values);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [values]);
 
   useEffect(() => {
     if (!templateId) return;
     const loadData = async () => {
       try {
         setLoading(true);
-        // 1. Get Template Info
-        const tmplRes = await fetch(`/api/templates/${templateId}`);
+        const [tmplRes, schemaRes, htmlRes] = await Promise.all([
+          fetch(`/api/templates/${templateId}`),
+          fetch(`/api/templates/${templateId}/schema`),
+          fetch(`/api/builder/${templateId}/preview-html`, { method: 'POST' })
+        ]);
+
         const tmplData = await tmplRes.json();
         setTemplate(tmplData);
         setFieldConfig(tmplData.fieldConfig || {});
 
-        // 2. Get Raw HTML for Realtime Preview
-        const htmlRes = await fetch(`/api/builder/${templateId}/preview-html`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ values: {} }) // Send empty values to get placeholders
-        });
         const htmlData = await htmlRes.json();
         if (htmlData.html) setHtmlTemplate(htmlData.html);
 
-        // 3. Get Schema
-        const schemaRes = await fetch(`/api/templates/${templateId}/schema`);
         const schemaData = await schemaRes.json();
         if (schemaData.schema) {
           const fNames = schemaData.schema.map((s: any) => s.variable);
@@ -47,8 +53,9 @@ export default function BuilderPage() {
           const initialValues: any = {};
           fNames.forEach((f: string) => initialValues[f] = '');
           setValues(initialValues);
+          setDebouncedValues(initialValues);
         }
-      } catch (error) { console.error(error); } finally { setLoading(false); }
+      } catch (e) { console.error(e); } finally { setLoading(false); }
     };
     loadData();
   }, [templateId]);
@@ -102,7 +109,8 @@ export default function BuilderPage() {
       templateId={templateId}
       templateName={template.name}
       fields={fields}
-      values={values}
+      values={values} // Immediate update for Inputs
+      previewValues={debouncedValues} // Delayed update for Preview
       fieldConfig={fieldConfig}
       htmlTemplate={htmlTemplate}
       focusedField={focusedField}
