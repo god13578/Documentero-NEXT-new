@@ -44,7 +44,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return new NextResponse(pdfBuf, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="${params.id}.pdf"`,
+        "Content-Disposition": "inline; filename=preview.pdf", // Important: Inline for browser viewing
       },
     });
   } catch (error: any) {

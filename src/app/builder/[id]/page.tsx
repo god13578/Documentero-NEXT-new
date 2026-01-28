@@ -20,19 +20,16 @@ export default function BuilderPage() {
     async function load() {
       try {
         setLoading(true);
-        // Load Template
         const tRes = await fetch(`/api/templates/${templateId}`);
         const tData = await tRes.json();
         setTemplate(tData);
         setFieldConfig(tData.fieldConfig || {});
 
-        // Load Schema (Fields)
         const sRes = await fetch(`/api/templates/${templateId}/schema`);
         const sData = await sRes.json();
-        if (sData.schema) {
+        if (sData.ok && sData.schema) {
           const fNames = sData.schema.map((s: any) => s.variable);
           setFields(fNames);
-          // Init values
           const initVals: any = {};
           fNames.forEach((f: string) => initVals[f] = '');
           setValues(initVals);
@@ -44,7 +41,6 @@ export default function BuilderPage() {
 
   const getProcessedValues = () => {
     const processed = { ...values };
-    // Apply Date Formatting logic before sending to Preview/Generation
     Object.keys(fieldConfig).forEach(key => {
       const config = fieldConfig[key];
       if (processed[key]) {
@@ -55,30 +51,59 @@ export default function BuilderPage() {
     return processed;
   };
 
-  const handleDownload = async (type: 'docx' | 'pdf') => {
-    const endpoint = type === 'pdf' ? 'generate-pdf' : 'generate';
-    const res = await fetch(`/api/builder/${templateId}/${endpoint}`, {
-      method: 'POST',
-      body: JSON.stringify({ values: getProcessedValues() })
+  const handleDownloadWord = async () => {
+    const res = await fetch(`/api/builder/${templateId}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: getProcessedValues() })
     });
-    if (res.ok) {
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${template.name}.${type}`;
-      a.click();
-    } else { alert('Download failed'); }
+    if(res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${template.name}.docx`;
+        a.click();
+    }
+  };
+
+  const handlePreviewPdf = async () => {
+     // Since opening a new tab with POST data is tricky, we use a trick:
+     // 1. Generate a temporary ID or store values in session/local storage?
+     // 2. OR simpler: just fetch blob and open URL.
+     
+     const w = window.open('', '_blank');
+     if(w) w.document.write('Loading PDF Preview...');
+
+     try {
+        const res = await fetch(`/api/builder/${templateId}/preview-pdf`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ values: getProcessedValues() })
+        });
+        if(res.ok) {
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            if(w) w.location.href = url;
+        } else {
+            if(w) w.close();
+            alert('Failed to generate PDF Preview');
+        }
+     } catch(e) {
+        if(w) w.close();
+        console.error(e);
+     }
   };
 
   const handleSave = async () => {
     setSaving(true);
     await fetch(`/api/templates/${templateId}`, {
       method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fieldConfig })
     });
     setSaving(false);
-    alert('บันทึกการตั้งค่าเรียบร้อย');
+    alert('Settings Saved');
   };
 
   if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
@@ -92,11 +117,13 @@ export default function BuilderPage() {
       values={values}
       fieldConfig={fieldConfig}
       saving={saving}
-      onValueChange={(k: string, v: any) => setValues(p => ({...p, [k]: v}))}
+      onValueChange={(k, v) => setValues(p => ({...p, [k]: v}))}
       onConfigChange={setFieldConfig}
+      onFieldClick={() => {}} 
+      focusedField={null}
       onSave={handleSave}
-      onGenerateDocx={() => handleDownload('docx')}
-      onGeneratePdf={() => handleDownload('pdf')}
+      onGenerateDocx={handleDownloadWord}
+      onPreviewPdf={handlePreviewPdf}
     />
   );
 }
