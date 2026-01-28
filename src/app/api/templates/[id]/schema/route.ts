@@ -44,10 +44,10 @@ function extractVariablesSuper(filePath: string): string[] {
 
     const big = allTexts.join("\n");
     const found = new Set<string>();
-    const re = /{{\s*([^{}]+?)\s*}}|{\s*([^{}]+?)\s*}/g;
+    const re = /\{([^}]+)\}/g;
     let m;
     while ((m = re.exec(big)) !== null) {
-      const v = (m[1] || m[2] || "").trim();
+      const v = (m[1] || "").trim();
       if (v) found.add(v);
     }
 

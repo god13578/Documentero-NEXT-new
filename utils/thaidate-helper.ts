@@ -1,35 +1,27 @@
-const THAI_MONTHS_FULL = [
-  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
-];
+export function formatThaiDate(date: string | Date | undefined | null, format: 'short' | 'full' = 'short'): string {
+  if (!date) return '';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return String(date);
 
-const THAI_MONTHS_SHORT = [
-  "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
-  "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
-];
+  const thaiMonths = [
+    "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+    "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+  ];
 
-export function formatThaiDate(dateString: string, type: 'full' | 'short' | 'iso' = 'iso'): string {
-  if (!dateString) return '';
-  
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) return dateString; // Return original if invalid
+  const thaiDays = [
+    "วันอาทิตย์", "วันจันทร์", "วันอังคาร", "วันพุธ", "วันพฤหัสบดี", "วันศุกร์", "วันเสาร์"
+  ];
 
-  const day = date.getDate();
-  const month = date.getMonth();
-  const year = date.getFullYear() + 543;
+  const day = d.getDate();
+  const month = thaiMonths[d.getMonth()];
+  const year = d.getFullYear() + 543;
+  const weekday = thaiDays[d.getDay()];
 
-  if (type === 'full') {
-    // 1 มกราคม 2569
-    return `${day} ${THAI_MONTHS_FULL[month]} ${year}`;
-  } else if (type === 'short') {
-    // 1 ม.ค. 2568
-    return `${day} ${THAI_MONTHS_SHORT[month]} ${year}`;
+  if (format === 'full') {
+    // Output: วันศุกร์ที่ 6 มกราคม 2568
+    return `${weekday}ที่ ${day} ${month} ${year}`;
+  } else {
+    // Output: 6 มกราคม 2568
+    return `${day} ${month} ${year}`;
   }
-  
-  // Default ISO-like but Buddhist year (optional usage)
-  return `${day}/${month + 1}/${year}`;
-}
-
-export function getCurrentDateISO(): string {
-  return new Date().toISOString().split('T')[0];
 }

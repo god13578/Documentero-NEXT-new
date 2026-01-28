@@ -1,109 +1,87 @@
 "use client";
-
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import ModernBuilderLayout from '../../../../components/ModernBuilderLayout';
-import { FieldConfigMap } from '../../../../components/DynamicFieldBuilder';
-import { FileText, Loader2 } from 'lucide-react';
-
-interface Template {
-  id: string;
-  name: string;
-}
+import { Loader2 } from 'lucide-react';
+import { formatThaiDate } from '../../../../utils/thaidate-helper';
 
 export default function BuilderPage() {
   const params = useParams();
-  const router = useRouter();
   const templateId = params?.id as string;
-
-  const [template, setTemplate] = useState<Template | null>(null);
+  const [template, setTemplate] = useState<any>(null);
   const [fields, setFields] = useState<string[]>([]);
   const [values, setValues] = useState<Record<string, any>>({});
-  const [fieldConfig, setFieldConfig] = useState<FieldConfigMap>({});
-  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [fieldConfig, setFieldConfig] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Default preview mode เป็น 'pdf-live'
-  const [previewMode, setPreviewMode] = useState<'word' | 'pdf-live'>('pdf-live');
-
   useEffect(() => {
     if (!templateId) return;
-    const loadData = async () => {
+    async function load() {
       try {
         setLoading(true);
-        // Load Template Info
-        const tmplRes = await fetch(`/api/templates/${templateId}`);
-        if (!tmplRes.ok) throw new Error('Failed to load template');
-        const tmplData = await tmplRes.json();
-        setTemplate(tmplData);
-        setFieldConfig(tmplData.fieldConfig || {});
+        // Load Template
+        const tRes = await fetch(`/api/templates/${templateId}`);
+        const tData = await tRes.json();
+        setTemplate(tData);
+        setFieldConfig(tData.fieldConfig || {});
 
-        // Load Schema
-        const schemaRes = await fetch(`/api/templates/${templateId}/schema`);
-        if (schemaRes.ok) {
-          const schemaData = await schemaRes.json();
-          if (schemaData.ok && schemaData.schema) {
-            const fieldNames = schemaData.schema.map((s: any) => s.variable);
-            setFields(fieldNames);
-            // Init values
-            const initialValues: Record<string, any> = {};
-            fieldNames.forEach((field: string) => initialValues[field] = '');
-            setValues(initialValues);
-          }
+        // Load Schema (Fields)
+        const sRes = await fetch(`/api/templates/${templateId}/schema`);
+        const sData = await sRes.json();
+        if (sData.schema) {
+          const fNames = sData.schema.map((s: any) => s.variable);
+          setFields(fNames);
+          // Init values
+          const initVals: any = {};
+          fNames.forEach((f: string) => initVals[f] = '');
+          setValues(initVals);
         }
-      } catch (error) {
-        console.error('Error loading data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
+      } catch (e) { console.error(e); } finally { setLoading(false); }
+    }
+    load();
   }, [templateId]);
 
-  const handleDownload = async (format: 'docx' | 'pdf') => {
-    if (!template) return;
-    const endpoint = format === 'pdf' ? 'generate-pdf' : 'generate';
-    try {
-      const res = await fetch(`/api/builder/${templateId}/${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ values }),
-      });
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${template.name}.${format === 'pdf' ? 'pdf' : 'docx'}`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-      } else {
-        alert('เกิดข้อผิดพลาดในการดาวน์โหลด');
+  const getProcessedValues = () => {
+    const processed = { ...values };
+    // Apply Date Formatting logic before sending to Preview/Generation
+    Object.keys(fieldConfig).forEach(key => {
+      const config = fieldConfig[key];
+      if (processed[key]) {
+        if (config.type === 'date') processed[key] = formatThaiDate(processed[key], 'short');
+        if (config.type === 'fulldate') processed[key] = formatThaiDate(processed[key], 'full');
       }
-    } catch (e) {
-      alert('Error downloading file');
-    }
+    });
+    return processed;
+  };
+
+  const handleDownload = async (type: 'docx' | 'pdf') => {
+    const endpoint = type === 'pdf' ? 'generate-pdf' : 'generate';
+    const res = await fetch(`/api/builder/${templateId}/${endpoint}`, {
+      method: 'POST',
+      body: JSON.stringify({ values: getProcessedValues() })
+    });
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${template.name}.${type}`;
+      a.click();
+    } else { alert('Download failed'); }
   };
 
   const handleSave = async () => {
-    if (!template) return;
     setSaving(true);
-    try {
-      await fetch(`/api/templates/${templateId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fieldConfig }),
-      });
-      alert('บันทึกเรียบร้อย');
-    } catch (e) {
-      alert('บันทึกไม่สำเร็จ');
-    } finally {
-      setSaving(false);
-    }
+    await fetch(`/api/templates/${templateId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ fieldConfig })
+    });
+    setSaving(false);
+    alert('บันทึกการตั้งค่าเรียบร้อย');
   };
 
-  if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600" /></div>;
+  if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
   if (!template) return <div>Template not found</div>;
 
   return (
@@ -113,13 +91,10 @@ export default function BuilderPage() {
       fields={fields}
       values={values}
       fieldConfig={fieldConfig}
-      focusedField={focusedField}
-      previewMode={previewMode}
-      onValueChange={(k, v) => setValues(prev => ({ ...prev, [k]: v }))}
-      onConfigChange={setFieldConfig}
-      onSetPreviewMode={setPreviewMode}
-      onSave={handleSave}
       saving={saving}
+      onValueChange={(k: string, v: any) => setValues(p => ({...p, [k]: v}))}
+      onConfigChange={setFieldConfig}
+      onSave={handleSave}
       onGenerateDocx={() => handleDownload('docx')}
       onGeneratePdf={() => handleDownload('pdf')}
     />
