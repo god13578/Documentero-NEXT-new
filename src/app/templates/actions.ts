@@ -6,6 +6,7 @@ import { db } from "@/lib/db/client";
 import { templates, templateFields } from "@/lib/db/schema";
 import { extractFieldsFromDocx } from "@/lib/document/parser";
 import { randomUUID } from "crypto";
+import { getSession } from "@/lib/auth/session";
 
 export async function uploadTemplate(
   _: any,
@@ -19,6 +20,13 @@ export async function uploadTemplate(
   }
 
   try {
+    // Get user session
+    const session = await getSession();
+    if (!session) {
+      console.error("Template upload failed: No active session");
+      return { error: "กรุณาเข้าสู่ระบบก่อนอัปโหลดเทมเพลต" };
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
     const fields = extractFieldsFromDocx(buffer);
 
@@ -29,33 +37,36 @@ export async function uploadTemplate(
     const filePath = path.join(dir, `${id}.docx`);
     await fs.writeFile(filePath, buffer);
 
-    // Insert template with userId = 1 (default user for now)
+    console.log(`Template "${name}" uploaded with fields:`, fields);
+
+    // Insert template with actual user ID from session
     await db.insert(templates).values({
       id,
-      userId: 1, // Default user ID
+      userId: session, // Use actual user ID from session
       name,
       docxPath: filePath,
       originalName: file.name,
       fieldConfig: {}, // Initialize with empty config
     });
 
-    // Insert template fields
+    // Insert template fields with correct schema
     for (const field of fields) {
       await db.insert(templateFields).values({
+        id: randomUUID(),
         templateId: id,
         name: field,
-        label: field, // Use field name as label initially
-        type: "text", // Default type
-        options: null,
-        defaultValue: null,
-        isRequired: false,
-        fieldOrder: 0,
       });
     }
 
+    console.log(`Template "${name}" saved successfully with ID: ${id}`);
+
     return { success: true, id };
   } catch (error) {
-    console.error("Upload error:", error);
+    console.error("Template upload error:", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString()
+    });
     return { error: "เกิดข้อผิดพลาดในการอัปโหลด" };
   }
 }

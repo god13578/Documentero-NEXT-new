@@ -5,14 +5,23 @@ import { randomUUID } from "crypto";
 import fs from "fs/promises";
 import path from "path";
 import { extractFieldsFromDocx } from "@/lib/document/parser";
+import { getSession } from "@/lib/auth/session";
 
 export async function POST(request: Request) {
   try {
+    // Get user session
+    const session = await getSession();
+    if (!session) {
+      console.error("Template upload failed: No active session");
+      return NextResponse.json({ error: "Unauthorized - Please login first" }, { status: 401 });
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as File;
     const name = formData.get("name") as string;
 
     if (!file || !name) {
+      console.error("Template upload failed: Missing file or name");
       return NextResponse.json({ error: "File and name are required" }, { status: 400 });
     }
 
@@ -31,11 +40,12 @@ export async function POST(request: Request) {
 
     // Extract fields from template
     const uniqueFields = extractFieldsFromDocx(buffer);
+    console.log(`Template "${name}" uploaded with fields:`, uniqueFields);
 
-    // Save template to database
+    // Save template to database with actual user ID
     await db.insert(templates).values({
       id: templateId,
-      userId: 1,
+      userId: session, // session is the userId string directly
       name,
       docxPath: uploadPath,
       originalName: file.name,
@@ -51,6 +61,8 @@ export async function POST(request: Request) {
       });
     }
 
+    console.log(`Template "${name}" saved successfully with ID: ${templateId}`);
+
     return NextResponse.json({ 
       success: true, 
       templateId,
@@ -58,7 +70,14 @@ export async function POST(request: Request) {
     });
 
   } catch (error) {
-    console.error("Error uploading template:", error);
-    return NextResponse.json({ error: "Failed to upload template" }, { status: 500 });
+    console.error("Error uploading template:", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString()
+    });
+    return NextResponse.json({ 
+      error: "Failed to upload template",
+      details: error instanceof Error ? error.message : "Unknown error"
+    }, { status: 500 });
   }
 }
