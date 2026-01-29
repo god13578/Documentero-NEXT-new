@@ -115,31 +115,31 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200">
+      {/* Header - Government Style */}
+      <div className="bg-blue-900 border-b border-blue-800">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-                <BarChart3 className="text-blue-600" />
+              <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                <BarChart3 className="text-blue-200" />
                 แดชบอร์ดระบบเอกสารราชการ
               </h1>
-              <p className="text-slate-600 mt-1">ภาพรวมการใช้งานระบบและประวัติล่าสุด</p>
+              <p className="text-blue-200 mt-1">ภาพรวมการใช้งานระบบและประวัติการสร้างเอกสาร</p>
             </div>
             <div className="flex gap-3">
               <Link
                 href="/templates/upload"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-lg"
               >
                 <FileText className="w-4 h-4" />
-                อัปโหลด Template
+                อัปโหลดเทมเพลต
               </Link>
               <Link
                 href="/templates"
-                className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2 shadow-lg"
               >
                 <Eye className="w-4 h-4" />
-                ดู Templates
+                ดูเทมเพลตทั้งหมด
               </Link>
             </div>
           </div>
@@ -147,51 +147,54 @@ export default function Dashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Stats Overview */}
+        {/* Statistics Cards - Government Style */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+          <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">จำนวน Templates</p>
-                <p className="text-3xl font-bold text-slate-900 mt-2">{stats?.totalTemplates || 0}</p>
+                <p className="text-sm font-medium text-slate-600">จำนวนเทมเพลตทั้งหมด</p>
+                <p className="text-3xl font-bold text-blue-900 mt-2">{stats?.totalTemplates || 0}</p>
+                <p className="text-xs text-slate-500 mt-1">แม่แบบเอกสารในระบบ</p>
               </div>
-              <div className="p-3 bg-blue-50 rounded-lg">
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <FileText className="w-6 h-6 text-blue-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+          <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">เอกสารทั้งหมด</p>
-                <p className="text-3xl font-bold text-slate-900 mt-2">{stats?.totalDocuments || 0}</p>
+                <p className="text-sm font-medium text-slate-600">เอกสารทั้งหมดที่สร้าง</p>
+                <p className="text-3xl font-bold text-green-700 mt-2">{stats?.totalDocuments || 0}</p>
+                <p className="text-xs text-slate-500 mt-1">เอกสารที่สร้างขึ้นทั้งหมด</p>
               </div>
-              <div className="p-3 bg-green-50 rounded-lg">
+              <div className="p-3 bg-green-50 rounded-lg border border-green-200">
                 <File className="w-6 h-6 text-green-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+          <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">เอกสารวันนี้</p>
-                <p className="text-3xl font-bold text-slate-900 mt-2">{stats?.documentsToday || 0}</p>
+                <p className="text-sm font-medium text-slate-600">เอกสารที่สร้างวันนี้</p>
+                <p className="text-3xl font-bold text-amber-600 mt-2">{stats?.documentsToday || 0}</p>
+                <p className="text-xs text-slate-500 mt-1">วันที่ {new Date().toLocaleDateString('th-TH')}</p>
               </div>
-              <div className="p-3 bg-amber-50 rounded-lg">
+              <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
                 <TrendingUp className="w-6 h-6 text-amber-600" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Recent History */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-          <div className="px-6 py-4 border-b border-slate-200">
-            <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-slate-600" />
-              ประวัติเอกสารล่าสุด
+        {/* Recent Activity Table - Government Style */}
+        <div className="bg-white rounded-xl shadow-lg border border-slate-200">
+          <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+            <h2 className="text-lg font-semibold text-blue-900 flex items-center gap-2">
+              <Clock className="w-5 h-5 text-blue-700" />
+              ประวัติการสร้างเอกสารล่าสุด
             </h2>
           </div>
           
@@ -199,23 +202,23 @@ export default function Dashboard() {
             {stats?.recentDocuments.length === 0 ? (
               <div className="text-center py-12">
                 <File className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                <p className="text-slate-500">ยังไม่มีเอกสารในระบบ</p>
-                <p className="text-slate-400 text-sm mt-1">เริ่มสร้างเอกสารจาก template เพื่อดูประวัติ</p>
+                <p className="text-slate-500 font-medium">ยังไม่มีเอกสารในระบบ</p>
+                <p className="text-slate-400 text-sm mt-1">กรุณาสร้างเอกสารจากเทมเพลตเพื่อดูประวัติการใช้งาน</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-slate-200">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-700">ชื่อเอกสาร</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-700">Template</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-slate-700">วันที่สร้าง</th>
-                      <th className="text-center py-3 px-4 text-sm font-medium text-slate-700">ดาวน์โหลด</th>
+                    <tr className="border-b border-slate-200 bg-slate-50">
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-blue-900">ชื่อเอกสาร</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-blue-900">เทมเพลตที่ใช้</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-blue-900">วันที่สร้าง</th>
+                      <th className="text-center py-3 px-4 text-sm font-semibold text-blue-900">การดำเนินการ</th>
                     </tr>
                   </thead>
                   <tbody>
                     {stats?.recentDocuments.map((doc) => (
-                      <tr key={doc.id} className="border-b border-slate-100 hover:bg-slate-50">
+                      <tr key={doc.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                         <td className="py-3 px-4">
                           <div className="font-medium text-slate-900">{doc.name}</div>
                         </td>
@@ -232,8 +235,8 @@ export default function Dashboard() {
                             <button
                               onClick={() => handleDownload(doc.id, 'docx')}
                               disabled={downloading === `${doc.id}-docx`}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
-                              title="ดาวน์โหลด Word"
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 border border-blue-200"
+                              title="ดาวน์โหลดเอกสาร Word"
                             >
                               {downloading === `${doc.id}-docx` ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -244,8 +247,8 @@ export default function Dashboard() {
                             <button
                               onClick={() => handleDownload(doc.id, 'pdf')}
                               disabled={downloading === `${doc.id}-pdf`}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                              title="ดาวน์โหลด PDF"
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 border border-red-200"
+                              title="ดาวน์โหลดเอกสาร PDF"
                             >
                               {downloading === `${doc.id}-pdf` ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
