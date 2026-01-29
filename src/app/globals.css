@@ -2,26 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Document field styles */
-.doc-field {
-  background-color: #fef3c7;
-  padding: 2px 6px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: 1px solid #f59e0b;
-  font-weight: 500;
-}
+@layer components {
+  /* The A4 Paper Look */
+  .document-page {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 20mm;
+    margin: 0 auto;
+    background-color: white;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    color: #333;
+    font-family: 'Sarabun', sans-serif;
+    line-height: 1.6;
+    word-wrap: break-word;
+  }
 
-.doc-field:hover {
-  background-color: #fde68a;
-  border-color: #d97706;
-  transform: scale(1.02);
-}
+  /* The Yellow Highlight Variable */
+  .doc-field {
+    display: inline-block;
+    min-width: 20px;
+    padding: 0 4px;
+    margin: 0 2px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.1s;
+    
+    /* State 1: Empty (Yellow Highlight) */
+    background-color: rgba(254, 240, 138, 0.6); /* yellow-200 */
+    border-bottom: 2px dashed #ca8a04; /* yellow-600 */
+    color: #854d0e; /* yellow-800 */
+  }
 
-.doc-field.active {
-  background-color: #fbbf24;
-  border-color: #b45309;
-  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.3);
-  transform: scale(1.05);
+  .doc-field:hover {
+    background-color: #fde047; /* yellow-300 */
+    transform: translateY(-1px);
+  }
+
+  /* State 2: Filled (Green Highlight) */
+  .doc-field.filled {
+    background-color: rgba(187, 247, 208, 0.5); /* green-200 */
+    border-bottom: 2px solid #16a34a; /* green-600 */
+    color: #15803d; /* green-700 */
+    text-decoration: none;
+  }
 }

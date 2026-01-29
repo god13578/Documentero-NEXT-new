@@ -18,7 +18,7 @@ export default function DynamicFieldBuilder({ fields, values, fieldConfig, onCha
 
   const scrollToField = useCallback((field: string | null) => {
     if (field) {
-      const element = document.getElementById(`field-${field}`);
+      const element = document.getElementById(`field-input-${field}`);
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         // Add flash effect
@@ -43,7 +43,7 @@ export default function DynamicFieldBuilder({ fields, values, fieldConfig, onCha
         return (
           <div 
             key={field} 
-            id={`field-${field}`} // Target for scrolling
+            id={`field-input-${field}`} // Target for scrolling
             className="p-4 rounded-xl border border-gray-200 bg-white hover:border-indigo-300 transition-all duration-300"
           >
             <div className="flex justify-between items-center mb-2">

@@ -5,20 +5,21 @@ import mammoth from "mammoth";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { values } = await req.json();
     const templateId = params.id;
-    const docxPath = path.join(process.cwd(), "public", "templates", `${templateId}.docx`);
-
+    // Check template location
+    let docxPath = path.join(process.cwd(), "public", "templates", `${templateId}.docx`);
     if (!fs.existsSync(docxPath)) {
-      return NextResponse.json({ error: "Template not found" }, { status: 404 });
+       docxPath = path.join(process.cwd(), "public", "uploads", `${templateId}.docx`);
     }
 
-    // Convert raw DOCX to HTML to preserve {placeholders}
+    if (!fs.existsSync(docxPath)) {
+      return NextResponse.json({ error: "File not found" }, { status: 404 });
+    }
+
+    // Convert to HTML but PRESERVE {tags}
     const result = await mammoth.convertToHtml({ path: docxPath });
-    
     return NextResponse.json({ html: result.value });
   } catch (error: any) {
-    console.error("HTML Preview Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

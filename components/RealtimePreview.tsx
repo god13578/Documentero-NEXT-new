@@ -9,40 +9,41 @@ interface Props {
 
 export default function RealtimePreview({ htmlTemplate, values, onFieldClick }: Props) {
   
-  // Memoize HTML generation with improved regex for whitespace handling
+  // This memoized function replaces {placeholders} with <span class="doc-field"> instantly
   const processedHtml = useMemo(() => {
     if (!htmlTemplate) return '';
 
-    // Improved regex to handle potential whitespace inside braces: /\{\s*([^}]+)\s*\}/g
-    // This replaces variables with styled spans that are clickable
-    return htmlTemplate.replace(/\{\s*([^}]+)\s*\}/g, (match, key) => {
-      const cleanKey = key.trim();
+    // Regex to match { variable } or {{ variable }}
+    return htmlTemplate.replace(/\{{1,2}\s*([^{}<>]+?)\s*\}{1,2}/g, (match, key) => {
+      const cleanKey = key.trim().replace(/&nbsp;/g, '');
       const val = values[cleanKey];
-      const display = val ? val : match; // Show value if exists, else show placeholder
+      const isFilled = val !== undefined && val !== null && val !== '';
       
-      // Styling: Yellow highlight, cursor pointer
-      const style = "background-color: #fef08a; border-bottom: 2px dashed #eab308; cursor: pointer; padding: 0 2px; border-radius: 2px;";
-      
-      return `<span class="preview-var-highlight" style="${style}" data-field="${cleanKey}">${display}</span>`;
+      // Determine display text
+      const displayText = isFilled ? val : `{${cleanKey}}`;
+      const className = `doc-field ${isFilled ? 'filled' : ''}`;
+
+      return `<span class="${className}" data-field="${cleanKey}">${displayText}</span>`;
     });
-  }, [htmlTemplate, values]); // Only re-run when template or values change
+  }, [htmlTemplate, values]);
 
   const handleClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    // Check if clicked element is our variable highlight
-    if (target.classList.contains('preview-var-highlight') || target.closest('.preview-var-highlight')) {
-      const field = target.getAttribute('data-field') || target.closest('.preview-var-highlight')?.getAttribute('data-field');
-      if (field) {
-        onFieldClick(field);
-      }
+    const fieldElem = target.closest('.doc-field');
+    if (fieldElem) {
+      e.preventDefault();
+      const field = fieldElem.getAttribute('data-field');
+      if (field) onFieldClick(field);
     }
   };
 
   return (
-    <div 
-      className="w-full min-h-full bg-white shadow-sm p-10 prose max-w-none"
-      onClick={handleClick}
-      dangerouslySetInnerHTML={{ __html: processedHtml || '<div class="text-center text-gray-400 mt-20">Loading Template...</div>' }}
-    />
+    <div className="w-full bg-gray-100 py-10 px-4 flex justify-center min-h-full overflow-y-auto">
+      <div 
+        className="document-page"
+        onClick={handleClick}
+        dangerouslySetInnerHTML={{ __html: processedHtml || '<div class="text-center text-gray-400 mt-20">Loading Template...</div>' }}
+      />
+    </div>
   );
 }

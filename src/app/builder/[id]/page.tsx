@@ -20,11 +20,11 @@ export default function BuilderPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Debounce Logic: Update preview values only after user stops typing for 500ms
+  // Debounce Logic: Update preview values only after user stops typing for 200ms
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedValues(values);
-    }, 500);
+    }, 200); // 200ms delay for preview update
     return () => clearTimeout(timer);
   }, [values]);
 
