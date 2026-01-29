@@ -31,7 +31,7 @@ export async function uploadTemplate(
     const fields = extractFieldsFromDocx(buffer);
 
     const id = randomUUID();
-    const dir = path.join(process.cwd(), "storage/templates");
+    const dir = path.join(process.cwd(), "public", "templates");
     await fs.mkdir(dir, { recursive: true });
 
     const filePath = path.join(dir, `${id}.docx`);
@@ -44,7 +44,7 @@ export async function uploadTemplate(
       id,
       userId: session, // Use actual user ID from session
       name,
-      docxPath: filePath,
+      docxPath: `public/templates/${id}.docx`, // Store relative path
       originalName: file.name,
       fieldConfig: {}, // Initialize with empty config
     });

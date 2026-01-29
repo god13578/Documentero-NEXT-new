@@ -19,6 +19,7 @@ interface Props {
   onValueChange: (k: string, v: any) => void;
   onConfigChange: (c: FieldConfigMap) => void;
   onFieldClick: (f: string) => void;
+  onFieldFocus: (f: string) => void;
   onSave: () => void;
   onGenerateDocx: () => void;
   onGeneratePdf: () => void;
@@ -72,6 +73,7 @@ export default function ModernBuilderLayout(props: Props) {
               onChange={props.onValueChange}
               onConfigChange={props.onConfigChange}
               focusedField={props.focusedField}
+              onFieldFocus={props.onFieldFocus}
             />
           </div>
         </div>
@@ -104,7 +106,8 @@ export default function ModernBuilderLayout(props: Props) {
                 <RealtimePreview 
                   htmlTemplate={props.htmlTemplate} 
                   values={props.previewValues} // Use debounced values
-                  onFieldClick={props.onFieldClick} 
+                  onFieldClick={props.onFieldClick}
+                  focusedField={props.focusedField}
                 />
               ) : (
                 <div className="bg-white h-full shadow-lg rounded overflow-hidden">

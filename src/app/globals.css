@@ -60,4 +60,23 @@
     text-decoration-color: #22c55e;
     text-decoration-thickness: 2px;
   }
+
+  /* 🎯 Focused State: Blue Glow */
+  .doc-field.focused {
+    background-color: rgba(59, 130, 246, 0.3) !important; /* Blue-500 with opacity */
+    border: 2px solid #3b82f6 !important; /* Blue-500 border */
+    border-radius: 6px !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2), 0 2px 4px rgba(0,0,0,0.1) !important; /* Blue glow */
+    transform: scale(1.05) !important;
+    animation: pulse-blue 2s infinite;
+  }
+
+  @keyframes pulse-blue {
+    0%, 100% {
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2), 0 2px 4px rgba(0,0,0,0.1);
+    }
+    50% {
+      box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.3), 0 2px 4px rgba(0,0,0,0.1);
+    }
+  }
 }

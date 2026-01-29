@@ -109,6 +109,7 @@ export default function BuilderPage() {
       onValueChange={(k: string, v: any) => setValues(p => ({...p, [k]: v}))}
       onConfigChange={setFieldConfig}
       onFieldClick={setFocusedField}
+      onFieldFocus={setFocusedField}
       onSave={handleSave}
       onGenerateDocx={() => handleDownload('docx')}
       onGeneratePdf={() => handleDownload('pdf')}

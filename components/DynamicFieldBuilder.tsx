@@ -13,8 +13,12 @@ export interface FieldConfigMap {
   };
 }
 
-export default function DynamicFieldBuilder({ fields, values, fieldConfig, onChange, onConfigChange, focusedField }: any) {
+export default function DynamicFieldBuilder({ fields, values, fieldConfig, onChange, onConfigChange, focusedField, onFieldFocus }: any) {
   const [editing, setEditing] = useState<string | null>(null);
+
+  const handleFieldFocus = useCallback((field: string) => {
+    onFieldFocus?.(field);
+  }, [onFieldFocus]);
 
   useEffect(() => {
     if (focusedField) {
@@ -39,9 +43,21 @@ export default function DynamicFieldBuilder({ fields, values, fieldConfig, onCha
               <button onClick={() => setEditing(editing === field ? null : field)}><Settings size={14} className="text-gray-400"/></button>
             </div>
             {config.type === 'textarea' ? (
-              <textarea value={values[field] || ''} onChange={e => onChange(field, e.target.value)} className="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-200 outline-none" rows={3} />
+              <textarea 
+                value={values[field] || ''} 
+                onChange={e => onChange(field, e.target.value)} 
+                onFocus={() => handleFieldFocus(field)}
+                className="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-200 outline-none" 
+                rows={3} 
+              />
             ) : (
-              <input type={config.type === 'number' ? 'number' : 'text'} value={values[field] || ''} onChange={e => onChange(field, e.target.value)} className="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-200 outline-none" />
+              <input 
+                type={config.type === 'number' ? 'number' : 'text'} 
+                value={values[field] || ''} 
+                onChange={e => onChange(field, e.target.value)}
+                onFocus={() => handleFieldFocus(field)}
+                className="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-200 outline-none" 
+              />
             )}
             {editing === field && (
               <div className="mt-2 pt-2 border-t text-xs">
@@ -53,4 +69,4 @@ export default function DynamicFieldBuilder({ fields, values, fieldConfig, onCha
       })}
     </div>
   );
-} 
+}

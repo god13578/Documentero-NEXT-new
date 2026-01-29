@@ -39,20 +39,27 @@ export default function PdfPreview({ templateId, values }: { templateId: string,
   }, [values, templateId]);
 
   return (
-    <div className="w-full h-full relative bg-gray-200">
+    <div className="w-full relative bg-gray-100" style={{ minHeight: '800px', height: '90vh' }}>
       {loading && (
-        <div className="absolute top-4 right-4 z-10 bg-white/90 px-3 py-1 rounded-full shadow border flex items-center gap-2">
-          <Loader2 className="animate-spin text-blue-600" size={14} />
-          <span className="text-xs font-medium text-blue-600">Updating...</span>
+        <div className="absolute top-4 right-4 z-10 bg-white/95 px-4 py-2 rounded-full shadow-lg border border-blue-200 flex items-center gap-2">
+          <Loader2 className="animate-spin text-blue-600" size={16} />
+          <span className="text-sm font-medium text-blue-600">กำลังอัปเดตพรีวิว...</span>
         </div>
       )}
       
       {pdfUrl ? (
-        <iframe src={`${pdfUrl}#toolbar=0&navpanes=0`} className="w-full h-full border-0" />
+        <div className="w-full h-full rounded-lg shadow-xl overflow-hidden border border-gray-300">
+          <iframe 
+            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`} 
+            className="w-full h-full border-0 bg-white"
+            style={{ minHeight: '800px', height: '90vh' }}
+          />
+        </div>
       ) : (
-        <div className="flex flex-col items-center justify-center h-full text-gray-400">
-          <Loader2 className="animate-spin mb-2" size={32} />
-          <p>Generating Preview...</p>
+        <div className="flex flex-col items-center justify-center h-full text-gray-500 bg-white rounded-lg border-2 border-dashed border-gray-300">
+          <Loader2 className="animate-spin mb-4" size={48} />
+          <p className="text-lg font-medium">กำลังสร้างพรีวิว PDF...</p>
+          <p className="text-sm text-gray-400 mt-2">กรุณารอสักครู่</p>
         </div>
       )}
     </div>

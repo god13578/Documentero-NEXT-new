@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       id: templateId,
       userId: session, // session is the userId string directly
       name,
-      docxPath: uploadPath,
+      docxPath: `public/templates/${fileName}`, // Store relative path
       originalName: file.name,
       fieldConfig: {},
     });
