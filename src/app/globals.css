@@ -3,33 +3,47 @@
 @tailwind utilities;
 
 @layer components {
+  /* 📄 A4 Paper Style (From Classic Documentero) */
   .document-page {
     width: 210mm;
     min-height: 297mm;
     padding: 20mm;
     margin: 0 auto;
-    background-color: white !important;
+    background-color: white;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    color: black !important;
+    color: #333;
     font-family: 'Sarabun', sans-serif;
     line-height: 1.6;
-    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
+  /* 🖍️ Variable Highlight (Yellow Box) */
   .doc-field {
     display: inline-block;
-    border-bottom: 2px dashed #eab308 !important; /* Yellow-500 */
-    background-color: rgba(254, 240, 138, 0.7) !important; /* Yellow-200 */
-    color: #854d0e !important; /* Yellow-800 */
-    font-weight: bold;
     padding: 0 4px;
+    margin: 0 2px;
     border-radius: 4px;
     cursor: pointer;
+    font-weight: 600;
+    transition: all 0.15s ease;
+    
+    /* Default: Yellow Highlight (Empty) */
+    background-color: rgba(254, 240, 138, 0.7); /* amber-200 */
+    border-bottom: 2px dashed #ca8a04; /* amber-600 */
+    color: #854d0e; /* amber-800 */
   }
-  
+
+  .doc-field:hover {
+    background-color: #fde047; /* amber-300 */
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  /* ✅ Filled State (Green) */
   .doc-field.filled {
-    background-color: rgba(187, 247, 208, 0.6) !important; /* Green-200 */
-    border-bottom: 2px solid #22c55e !important; /* Green-500 */
-    color: #14532d !important; /* Green-900 */
+    background-color: rgba(187, 247, 208, 0.5); /* green-200 */
+    border-bottom: 2px solid #16a34a; /* green-600 */
+    color: #15803d; /* green-700 */
+    text-decoration: none;
   }
 }

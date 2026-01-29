@@ -6,7 +6,7 @@ import mammoth from "mammoth";
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const templateId = params.id;
-    // Check template location
+    // Look in templates first, then uploads
     let docxPath = path.join(process.cwd(), "public", "templates", `${templateId}.docx`);
     if (!fs.existsSync(docxPath)) {
        docxPath = path.join(process.cwd(), "public", "uploads", `${templateId}.docx`);
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
-    // Convert to HTML but PRESERVE {tags}
+    // Convert raw docx to html (preserve placeholders)
     const result = await mammoth.convertToHtml({ path: docxPath });
     return NextResponse.json({ html: result.value });
   } catch (error: any) {

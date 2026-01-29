@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import ModernBuilderLayout from '../../../../components/ModernBuilderLayout';
-import { FieldConfigMap } from '../../../../components/DynamicFieldBuilder';
 import { Loader2 } from 'lucide-react';
 import { formatThaiDate } from '../../../../utils/thaidate-helper';
 
@@ -13,95 +12,87 @@ export default function BuilderPage() {
   const [template, setTemplate] = useState<any>(null);
   const [fields, setFields] = useState<string[]>([]);
   const [values, setValues] = useState<Record<string, any>>({});
-  const [debouncedValues, setDebouncedValues] = useState<Record<string, any>>({}); // For Preview
-  const [fieldConfig, setFieldConfig] = useState<FieldConfigMap>({});
+  const [debouncedValues, setDebouncedValues] = useState<Record<string, any>>({});
+  const [fieldConfig, setFieldConfig] = useState<any>({});
   const [htmlTemplate, setHtmlTemplate] = useState<string>('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Debounce Logic: Update preview values only after user stops typing for 200ms
+  // Debounce Effect: Fixes input lag
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedValues(values);
-    }, 200); // 200ms delay for preview update
-    return () => clearTimeout(timer);
-  }, [values]);
+    const handler = setTimeout(() => {
+      const processed = { ...values };
+      Object.keys(fieldConfig).forEach(key => {
+        const config = fieldConfig[key];
+        if (processed[key] && (config.type === 'date' || config.type === 'fulldate')) {
+          processed[key] = formatThaiDate(processed[key], config.type === 'fulldate' ? 'full' : 'short');
+        }
+      });
+      setDebouncedValues(processed);
+    }, 200);
+    return () => clearTimeout(handler);
+  }, [values, fieldConfig]);
 
   useEffect(() => {
     if (!templateId) return;
     const loadData = async () => {
       try {
         setLoading(true);
+        // Parallel Fetch
         const [tmplRes, schemaRes, htmlRes] = await Promise.all([
           fetch(`/api/templates/${templateId}`),
           fetch(`/api/templates/${templateId}/schema`),
           fetch(`/api/builder/${templateId}/preview-html`, { method: 'POST' })
         ]);
 
-        const tmplData = await tmplRes.json();
-        setTemplate(tmplData);
-        setFieldConfig(tmplData.fieldConfig || {});
+        const tmpl = await tmplRes.json();
+        setTemplate(tmpl);
+        setFieldConfig(tmpl.fieldConfig || {});
 
-        const htmlData = await htmlRes.json();
-        if (htmlData.html) setHtmlTemplate(htmlData.html);
+        const html = await htmlRes.json();
+        if(html.html) setHtmlTemplate(html.html);
 
-        const schemaData = await schemaRes.json();
-        if (schemaData.schema) {
-          const fNames = schemaData.schema.map((s: any) => s.variable);
-          setFields(fNames);
-          const initialValues: any = {};
-          fNames.forEach((f: string) => initialValues[f] = '');
-          setValues(initialValues);
-          setDebouncedValues(initialValues);
+        const schema = await schemaRes.json();
+        if(schema.schema) {
+          const f = schema.schema.map((s: any) => s.variable);
+          setFields(f);
+          const init: any = {};
+          f.forEach((k: string) => init[k] = '');
+          setValues(init);
+          setDebouncedValues(init);
         }
       } catch (e) { console.error(e); } finally { setLoading(false); }
     };
     loadData();
   }, [templateId]);
 
-  const getProcessedValues = () => {
-    const processed = { ...values };
-    Object.keys(fieldConfig).forEach(key => {
-      const config = fieldConfig[key];
-      if (processed[key] && (config.type === 'date' || config.type === 'fulldate')) {
-        processed[key] = formatThaiDate(processed[key], config.type === 'fulldate' ? 'full' : 'short');
-      }
+  const handleDownload = async (type: 'docx' | 'pdf') => {
+    const endpoint = type === 'pdf' ? 'generate-pdf' : 'generate';
+    const res = await fetch(`/api/builder/${templateId}/${endpoint}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ values: debouncedValues })
     });
-    return processed;
-  };
-
-  const handleDownload = async (format: 'docx' | 'pdf') => {
-    const endpoint = format === 'pdf' ? 'generate-pdf' : 'generate';
-    try {
-      const res = await fetch(`/api/builder/${templateId}/${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ values: getProcessedValues() }),
-      });
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${template.name}.${format}`;
-        a.click();
-      } else { alert('Download failed'); }
-    } catch (e) { alert('Error downloading'); }
+    if(res.ok) {
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `${template.name}.${type}`; a.click();
+    }
   };
 
   const handleSave = async () => {
     setSaving(true);
     await fetch(`/api/templates/${templateId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fieldConfig }),
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ fieldConfig })
     });
     setSaving(false);
-    alert('Settings Saved');
+    alert('Saved');
   };
 
-  if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600" /></div>;
+  if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600"/></div>;
   if (!template) return <div>Not Found</div>;
 
   return (
@@ -109,13 +100,13 @@ export default function BuilderPage() {
       templateId={templateId}
       templateName={template.name}
       fields={fields}
-      values={values} // Immediate update for Inputs
-      previewValues={debouncedValues} // Delayed update for Preview
+      values={values} // Immediate inputs
+      previewValues={debouncedValues} // Delayed preview
       fieldConfig={fieldConfig}
       htmlTemplate={htmlTemplate}
       focusedField={focusedField}
       saving={saving}
-      onValueChange={(k, v) => setValues(p => ({...p, [k]: v}))}
+      onValueChange={(k: string, v: any) => setValues(p => ({...p, [k]: v}))}
       onConfigChange={setFieldConfig}
       onFieldClick={setFocusedField}
       onSave={handleSave}
