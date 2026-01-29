@@ -9,18 +9,24 @@ interface Props {
 
 export default function RealtimePreview({ htmlTemplate, values, onFieldClick }: Props) {
   
-  // This memoized function replaces {placeholders} with <span class="doc-field"> instantly
   const processedHtml = useMemo(() => {
     if (!htmlTemplate) return '';
 
-    // Regex to match { variable } or {{ variable }}
-    return htmlTemplate.replace(/\{{1,2}\s*([^{}<>]+?)\s*\}{1,2}/g, (match, key) => {
-      const cleanKey = key.trim().replace(/&nbsp;/g, '');
+    // Advanced Regex: Matches { content } allowing HTML tags inside (e.g. <b>{</b> var <b>}</b>)
+    // Capture group 1 is the content inside braces
+    return htmlTemplate.replace(/\{{1,2}((?:[^{}]|&nbsp;|<[^>]+>)*?)\}{1,2}/g, (match, rawKey) => {
+      // Strip HTML tags from the key to get the variable name
+      const cleanKey = rawKey.replace(/<[^>]+>|&nbsp;/g, '').trim();
+      
+      // If empty or just symbols, ignore
+      if (!cleanKey || cleanKey.length === 0) return match;
+
       const val = values[cleanKey];
       const isFilled = val !== undefined && val !== null && val !== '';
       
-      // Determine display text
-      const displayText = isFilled ? val : `{${cleanKey}}`;
+      // Display: Value (if filled) OR Original Match (if empty)
+      // Note: We use 'match' to preserve original formatting (bold/italic) inside the bracket if user hasn't typed yet
+      const displayText = isFilled ? val : match;
       const className = `doc-field ${isFilled ? 'filled' : ''}`;
 
       return `<span class="${className}" data-field="${cleanKey}">${displayText}</span>`;
@@ -31,9 +37,11 @@ export default function RealtimePreview({ htmlTemplate, values, onFieldClick }: 
     const target = e.target as HTMLElement;
     const fieldElem = target.closest('.doc-field');
     if (fieldElem) {
-      e.preventDefault();
       const field = fieldElem.getAttribute('data-field');
-      if (field) onFieldClick(field);
+      if (field) {
+        e.preventDefault();
+        onFieldClick(field);
+      }
     }
   };
 
@@ -42,7 +50,7 @@ export default function RealtimePreview({ htmlTemplate, values, onFieldClick }: 
       <div 
         className="document-page"
         onClick={handleClick}
-        dangerouslySetInnerHTML={{ __html: processedHtml || '<div class="text-center text-gray-400 mt-20">Loading Template...</div>' }}
+        dangerouslySetInnerHTML={{ __html: processedHtml || '<div class="text-center p-10 text-gray-400">Loading Preview...</div>' }}
       />
     </div>
   );
