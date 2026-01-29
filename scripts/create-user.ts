@@ -1,17 +1,23 @@
-import { db } from "@/lib/db/client";
-import { users } from "@/lib/db/schema";
-import { hashPassword } from "@/lib/auth/password";
+import { db } from '../src/lib/db/client';
+import { users } from '../src/lib/db/schema';
+import { hashPassword } from '../src/lib/auth/password';
 
 async function main() {
-  const passwordHash = await hashPassword("1234");
+  console.log('🌱 Creating admin user...');
+  
+  const password = await hashPassword('admin1234');
 
-  await db.insert(users).values({
-    username: "staff",
-    passwordHash,
-    fullName: "เจ้าหน้าที่ระบบ",
-  });
-
-  console.log("User created: staff / 1234");
+  try {
+    await db.insert(users).values({
+      username: 'admin',
+      passwordHash: password,
+      fullName: 'ผู้ดูแลระบบ',
+      role: 'admin',
+    });
+    console.log('✅ User "admin" created successfully!');
+  } catch (e) {
+    console.error('❌ Error creating user:', e);
+  }
   process.exit(0);
 }
 
