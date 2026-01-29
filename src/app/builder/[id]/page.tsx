@@ -19,7 +19,7 @@ export default function BuilderPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Debounce Effect: Fixes input lag
+  // Debounce Effect: Fixes typing lag
   useEffect(() => {
     const handler = setTimeout(() => {
       const processed = { ...values };
@@ -39,20 +39,18 @@ export default function BuilderPage() {
     const loadData = async () => {
       try {
         setLoading(true);
-        // Parallel Fetch
-        const [tmplRes, schemaRes, htmlRes] = await Promise.all([
-          fetch(`/api/templates/${templateId}`),
-          fetch(`/api/templates/${templateId}/schema`),
-          fetch(`/api/builder/${templateId}/preview-html`, { method: 'POST' })
-        ]);
+        // Load RAW HTML for preview
+        const htmlRes = await fetch(`/api/builder/${templateId}/preview-html`, { method: 'POST' });
+        const htmlData = await htmlRes.json();
+        if(htmlData.html) setHtmlTemplate(htmlData.html);
 
+        // Load other data
+        const tmplRes = await fetch(`/api/templates/${templateId}`);
         const tmpl = await tmplRes.json();
         setTemplate(tmpl);
         setFieldConfig(tmpl.fieldConfig || {});
 
-        const html = await htmlRes.json();
-        if(html.html) setHtmlTemplate(html.html);
-
+        const schemaRes = await fetch(`/api/templates/${templateId}/schema`);
         const schema = await schemaRes.json();
         if(schema.schema) {
           const f = schema.schema.map((s: any) => s.variable);
@@ -92,7 +90,7 @@ export default function BuilderPage() {
     alert('Saved');
   };
 
-  if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600"/></div>;
+  if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin"/></div>;
   if (!template) return <div>Not Found</div>;
 
   return (
@@ -100,8 +98,8 @@ export default function BuilderPage() {
       templateId={templateId}
       templateName={template.name}
       fields={fields}
-      values={values} // Immediate inputs
-      previewValues={debouncedValues} // Delayed preview
+      values={values}
+      previewValues={debouncedValues}
       fieldConfig={fieldConfig}
       htmlTemplate={htmlTemplate}
       focusedField={focusedField}

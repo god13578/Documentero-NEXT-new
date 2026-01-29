@@ -9,11 +9,10 @@ interface Props {
 
 export default function RealtimePreview({ htmlTemplate, values, onFieldClick }: Props) {
   
-  // Replace {variable} with styled spans instantly
   const processedHtml = useMemo(() => {
     if (!htmlTemplate) return '';
 
-    // Regex to find { variable } ignoring inner tags
+    // Advanced Regex: Handles {variable}, {{variable}}, and tags inside like {<b>var</b>}
     return htmlTemplate.replace(/\{{1,2}((?:[^{}]|&nbsp;|<[^>]+>)*?)\}{1,2}/g, (match, rawKey) => {
       const cleanKey = rawKey.replace(/<[^>]+>|&nbsp;/g, '').trim();
       if (!cleanKey) return match;
@@ -40,12 +39,11 @@ export default function RealtimePreview({ htmlTemplate, values, onFieldClick }: 
   };
 
   return (
-    <div className="w-full bg-gray-200 py-10 px-4 flex justify-center min-h-full">
-      {/* The Paper */}
+    <div className="w-full bg-gray-100 py-8 flex justify-center min-h-full">
       <div 
         className="document-page"
         onClick={handleClick}
-        dangerouslySetInnerHTML={{ __html: processedHtml || '<div class="text-center text-gray-400 mt-10">Generating Preview...</div>' }}
+        dangerouslySetInnerHTML={{ __html: processedHtml || '<p class="text-gray-400 text-center mt-10">Loading Document...</p>' }}
       />
     </div>
   );
