@@ -5,17 +5,26 @@ import mammoth from "mammoth";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    // Check templates then uploads
-    const publicDir = path.join(process.cwd(), "public");
-    let docxPath = path.join(publicDir, "templates", `${params.id}.docx`);
-    if (!fs.existsSync(docxPath)) docxPath = path.join(publicDir, "uploads", `${params.id}.docx`);
+    const templateId = params.id;
+    // 1. Search in templates folder
+    let docxPath = path.join(process.cwd(), "public", "templates", `${templateId}.docx`);
+    
+    // 2. Fallback to uploads folder
+    if (!fs.existsSync(docxPath)) {
+       docxPath = path.join(process.cwd(), "public", "uploads", `${templateId}.docx`);
+    }
 
-    if (!fs.existsSync(docxPath)) return NextResponse.json({ error: "File not found" }, { status: 404 });
+    if (!fs.existsSync(docxPath)) {
+      return NextResponse.json({ error: "Template file not found" }, { status: 404 });
+    }
 
-    // Convert to HTML (Raw)
+    // 3. Convert to HTML (Raw, preserving placeholders)
     const result = await mammoth.convertToHtml({ path: docxPath });
+    
     return NextResponse.json({ html: result.value });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+
+  } catch (error: any) {
+    console.error("Preview Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
