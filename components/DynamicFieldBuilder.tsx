@@ -13,93 +13,39 @@ export interface FieldConfigMap {
   };
 }
 
-export default function DynamicFieldBuilder({ fields, values, fieldConfig, onChange, onConfigChange, focusedField }: { fields: string[], values: { [key: string]: string }, fieldConfig: FieldConfigMap, onChange: (field: string, value: string) => void, onConfigChange: (fieldConfig: FieldConfigMap) => void, focusedField: string | null }) {
+export default function DynamicFieldBuilder({ fields, values, fieldConfig, onChange, onConfigChange, focusedField }: any) {
   const [editing, setEditing] = useState<string | null>(null);
 
-  const scrollToField = useCallback((field: string | null) => {
-    if (field) {
-      const element = document.getElementById(`field-input-${field}`);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // Add flash effect
-        element.classList.add('ring-2', 'ring-yellow-400', 'bg-yellow-50');
-        setTimeout(() => {
-          element.classList.remove('ring-2', 'ring-yellow-400', 'bg-yellow-50');
-        }, 2000);
+  useEffect(() => {
+    if (focusedField) {
+      const el = document.getElementById(`field-input-${focusedField}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-yellow-400', 'bg-yellow-50');
+        setTimeout(() => el.classList.remove('ring-2', 'ring-yellow-400', 'bg-yellow-50'), 2000);
       }
     }
-  }, []);
-
-  useEffect(() => {
-    scrollToField(focusedField);
-  }, [focusedField, scrollToField]);
+  }, [focusedField]);
 
   return (
-    <div className="space-y-4 pb-20">
+    <div className="space-y-4 pb-24">
+      {fields.length === 0 && <p className="text-center text-gray-400 mt-10">No fields detected</p>}
       {fields.map((field: string) => {
         const config = fieldConfig[field] || { type: 'text' };
-        const isEdit = editing === field;
-        
         return (
-          <div 
-            key={field} 
-            id={`field-input-${field}`} // Target for scrolling
-            className="p-4 rounded-xl border border-gray-200 bg-white hover:border-indigo-300 transition-all duration-300"
-          >
-            <div className="flex justify-between items-center mb-2">
-              <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                {config.label || field}
-                <span className="bg-gray-100 text-gray-500 text-[10px] font-mono px-1.5 py-0.5 rounded border">
-                  {`{${field}}`}
-                </span>
-              </label>
-              <button onClick={() => setEditing(isEdit ? null : field)} className="text-gray-400 hover:text-indigo-600">
-                <Settings size={14} />
-              </button>
+          <div key={field} id={`field-input-${field}`} className="bg-white p-4 rounded-xl border hover:border-blue-400 transition-all shadow-sm">
+            <div className="flex justify-between mb-2">
+              <label className="font-semibold text-sm text-gray-700">{config.label || field}</label>
+              <button onClick={() => setEditing(editing === field ? null : field)}><Settings size={14} className="text-gray-400"/></button>
             </div>
-
             {config.type === 'textarea' ? (
-              <textarea 
-                value={values[field] || ''} 
-                onChange={e => onChange(field, e.target.value)} 
-                className="w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
-                rows={3}
-              />
+              <textarea value={values[field] || ''} onChange={e => onChange(field, e.target.value)} className="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-200 outline-none" rows={3} />
             ) : (
-              <input 
-                type={config.type === 'number' ? 'number' : 'text'}
-                value={values[field] || ''} 
-                onChange={e => onChange(field, e.target.value)} 
-                className="w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
-              />
+              <input type={config.type === 'number' ? 'number' : 'text'} value={values[field] || ''} onChange={e => onChange(field, e.target.value)} className="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-200 outline-none" />
             )}
-
-            {isEdit && (
-              <div className="mt-3 pt-3 border-t bg-gray-50 -mx-4 -mb-4 p-3 rounded-b-xl text-xs">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block font-medium mb-1">Type</label>
-                    <select 
-                      value={config.type} 
-                      onChange={e => onConfigChange({...fieldConfig, [field]: {...config, type: e.target.value as FieldType}})}
-                      className="w-full p-1 border rounded"
-                    >
-                      <option value="text">Text</option>
-                      <option value="textarea">Text Area</option>
-                      <option value="number">Number</option>
-                      <option value="date">Date</option>
-                      <option value="fulldate">Full Date</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block font-medium mb-1">Label</label>
-                    <input 
-                      value={config.label || ''} 
-                      onChange={e => onConfigChange({...fieldConfig, [field]: {...config, label: e.target.value}})}
-                      className="w-full p-1 border rounded"
-                    />
-                  </div>
-                </div>
+            {editing === field && (
+              <div className="mt-2 pt-2 border-t text-xs">
+                Type: <select value={config.type} onChange={e => onConfigChange({...fieldConfig, [field]: {...config, type: e.target.value}})} className="border rounded p-1"><option value="text">Text</option><option value="date">Date</option></select>
               </div>
             )}
           </div>

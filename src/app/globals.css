@@ -3,64 +3,61 @@
 @tailwind utilities;
 
 @layer components {
-  /* 📄 A4 Paper Container */
+  /* 📄 Classic A4 Paper Style */
   .document-page {
     width: 210mm;
     min-height: 297mm;
-    padding: 20mm 25mm; /* Adjusted margins for better header space */
+    padding: 20mm 25mm;
     margin: 0 auto;
     background-color: white;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    color: #000; /* Pure black text for docs */
+    color: #333;
     font-family: 'Sarabun', 'TH Sarabun New', sans-serif;
-    line-height: 1.5;
-    word-wrap: break-word;
+    line-height: 1.6;
+    overflow-wrap: break-word;
   }
 
-  /* 🦅 Garuda & Image Fixing */
+  /* 🦅 Fix Image/Garuda Alignment */
   .document-page img {
     display: block;
-    margin: 0 auto 10px auto; /* Center align and add bottom space */
-    max-width: 100px; /* Limit size so it doesn't blow up */
+    margin: 0 auto 10px auto;
+    max-width: 100px; /* Prevent huge images */
     height: auto;
-    object-fit: contain;
   }
-  
-  /* Make paragraphs with images centered */
-  .document-page p:has(img) {
-    text-align: center;
-  }
+  .document-page p:has(img) { text-align: center; }
 
-  /* 🖍️ Interactive Highlight (Yellow -> Green) */
+  /* 🖍️ Variable Highlight (Interactive) */
   .doc-field {
     display: inline-block;
-    padding: 0 2px;
-    margin: 0 1px;
-    border-radius: 2px;
+    min-width: 30px;
+    padding: 0 4px;
+    margin: 0 2px;
+    border-radius: 4px;
     cursor: pointer;
-    font-weight: bold;
-    min-width: 20px;
     text-align: center;
-    transition: all 0.2s;
+    transition: all 0.15s ease-in-out;
+    font-weight: 600;
     
     /* Empty State: Yellow */
-    background-color: #fef08a; /* yellow-200 */
-    border-bottom: 2px dashed #ca8a04; /* yellow-600 */
-    color: #854d0e;
+    background-color: rgba(253, 224, 71, 0.5); /* Yellow-300 */
+    border-bottom: 2px dashed #ca8a04; /* Yellow-600 */
+    color: #854d0e; /* Yellow-800 */
   }
 
   .doc-field:hover {
-    background-color: #fde047;
+    background-color: rgba(253, 224, 71, 1);
     transform: scale(1.05);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   }
 
-  /* Filled State: Green (Clean Look) */
+  /* ✅ Filled State: Green (Clean) */
   .doc-field.filled {
     background-color: transparent;
     border-bottom: none;
-    color: #000;
+    color: #000; /* Black text like real doc */
     text-decoration: underline;
     text-decoration-style: dotted;
-    text-decoration-color: #16a34a; /* Green underline */
+    text-decoration-color: #22c55e;
+    text-decoration-thickness: 2px;
   }
 }
