@@ -1,6 +1,5 @@
-import { uploadTemplate } from "./actions";
-import BuilderForm from "./form";
+import BuilderShell from "./BuilderShell";
 
 export default function BuilderPage() {
-  return <BuilderForm action={uploadTemplate} />;
+  return <BuilderShell />;
 }

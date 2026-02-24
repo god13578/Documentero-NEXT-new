@@ -1,7 +1,8 @@
+// DEPRECATED: Do not use. See README.md for current architecture.
 'use client';
 import React, { useState } from 'react';
 import { ArrowLeft, Save, Download, FileText, Eye, Printer } from 'lucide-react';
-import DynamicFieldBuilder, { FieldConfigMap } from './DynamicFieldBuilder';
+import { FieldConfigMap } from './DynamicFieldBuilder';
 import PdfPreview from './PdfPreview';
 import RealtimePreview from './RealtimePreview';
 import { useRouter } from 'next/navigation';
@@ -65,16 +66,8 @@ export default function ModernBuilderLayout(props: Props) {
           <div className="p-4 border-b bg-gray-50 font-semibold text-gray-700 sticky top-0">
             Data Entry
           </div>
-          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-            <DynamicFieldBuilder 
-              fields={props.fields}
-              values={props.values}
-              fieldConfig={props.fieldConfig}
-              onChange={props.onValueChange}
-              onConfigChange={props.onConfigChange}
-              focusedField={props.focusedField}
-              onFieldFocus={props.onFieldFocus}
-            />
+          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar text-sm text-slate-500">
+            (Legacy builder UI deprecated)
           </div>
         </div>
 

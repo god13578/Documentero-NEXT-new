@@ -1,272 +1,152 @@
-'use client';
-
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { db } from '@/lib/db/client';
+import { templates, documents } from '@/lib/db/schema';
+import { desc, sql, eq } from 'drizzle-orm';
 import Link from 'next/link';
-import { 
-  FileText, 
-  Download, 
-  Calendar, 
-  TrendingUp, 
-  Users, 
-  Clock,
-  File,
-  BarChart3,
-  Eye,
-  Loader2
-} from 'lucide-react';
-import { formatThaiDate } from '../../../utils/thaidate-helper';
+import { FileText, Plus, History, FileDown, Layout, Trash2, FileEdit } from 'lucide-react';
+import { redirect } from 'next/navigation';
 
-interface Template {
-  id: string;
-  name: string;
-  createdAt: string;
-}
+export const dynamic = 'force-dynamic';
 
-interface Document {
-  id: string;
-  name: string;
-  templateId: string;
-  templateName: string;
-  createdAt: string;
-  docxPath: string;
-  pdfPath?: string;
-}
+export default async function DashboardPage() {
+  // 1. ดึงข้อมูลจริงจาก DB
+  const templateList = await db.select().from(templates).orderBy(desc(templates.createdAt));
+  const recentDocs = await db.query.documents.findMany({
+    orderBy: [desc(documents.createdAt)],
+    limit: 5,
+    with: { template: true }
+  });
 
-interface Stats {
-  totalTemplates: number;
-  totalDocuments: number;
-  documentsToday: number;
-  recentDocuments: Document[];
-}
-
-export default function Dashboard() {
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [downloading, setDownloading] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function loadDashboardData() {
-      try {
-        // Load templates count
-        const templatesRes = await fetch('/api/templates/list');
-        const templates: Template[] = templatesRes.ok ? await templatesRes.json() : [];
-        
-        // Load documents
-        const documentsRes = await fetch('/api/documents/list');
-        const documents: Document[] = documentsRes.ok ? await documentsRes.json() : [];
-        
-        // Calculate today's documents
-        const today = new Date().toISOString().split('T')[0];
-        const todayDocuments = documents.filter(doc => 
-          doc.createdAt.startsWith(today)
-        ).length;
-
-        // Get recent documents (last 10)
-        const recentDocuments = documents
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-          .slice(0, 10);
-
-        setStats({
-          totalTemplates: templates.length,
-          totalDocuments: documents.length,
-          documentsToday: todayDocuments,
-          recentDocuments
-        });
-      } catch (error) {
-        console.error('Error loading dashboard data:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadDashboardData();
-  }, []);
-
-  const handleDownload = async (documentId: string, type: 'docx' | 'pdf') => {
-    setDownloading(`${documentId}-${type}`);
-    try {
-      const response = await fetch(`/api/documents/${documentId}/download?type=${type}`);
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `document.${type}`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-      }
-    } catch (error) {
-      console.error('Error downloading document:', error);
-    } finally {
-      setDownloading(null);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-xl shadow-lg text-center">
-          <Loader2 className="animate-spin w-8 h-8 text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">กำลังโหลดข้อมูล...</p>
-        </div>
-      </div>
-    );
-  }
+  const docCount = await db.select({ count: sql<number>`count(*)` }).from(documents);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header - Government Style */}
-      <div className="bg-blue-900 border-b border-blue-800">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-[#F8FAFC] font-sarabun text-slate-800 pb-20">
+      
+      {/* Navbar */}
+      <nav className="bg-white border-b border-slate-200 px-8 py-4 sticky top-0 z-30 flex justify-between items-center shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="bg-blue-600 p-2 rounded-lg text-white">
+            <Layout size={24} />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold leading-none text-slate-900">Documentero NEXT</h1>
+            <p className="text-xs text-slate-500 mt-1">ระบบสารบรรณอิเล็กทรอนิกส์ (V.3 Final)</p>
+          </div>
+        </div>
+        <Link href="/templates/upload" className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg shadow-md flex items-center gap-2 text-sm font-bold transition-all active:scale-95">
+            <Plus size={18} /> เพิ่มแม่แบบใหม่
+        </Link>
+      </nav>
+
+      <main className="max-w-7xl mx-auto p-8 space-y-10">
+        
+        {/* Stats Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-5">
+            <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+              <Layout size={32} />
+            </div>
             <div>
-              <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                <BarChart3 className="text-blue-200" />
-                แดชบอร์ดระบบเอกสารราชการ
-              </h1>
-              <p className="text-blue-200 mt-1">ภาพรวมการใช้งานระบบและประวัติการสร้างเอกสาร</p>
+              <p className="text-slate-500 font-medium">แม่แบบในระบบ</p>
+              <h2 className="text-4xl font-bold text-slate-800">{templateList.length} <span className="text-lg font-normal text-slate-400">ฉบับ</span></h2>
             </div>
-            <div className="flex gap-3">
-              <Link
-                href="/templates/upload"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-lg"
-              >
-                <FileText className="w-4 h-4" />
-                อัปโหลดเทมเพลต
+          </div>
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-5">
+            <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+              <FileText size={32} />
+            </div>
+            <div>
+              <p className="text-slate-500 font-medium">เอกสารที่สร้างแล้ว</p>
+              <h2 className="text-4xl font-bold text-slate-800">{Number(docCount[0].count)} <span className="text-lg font-normal text-slate-400">ฉบับ</span></h2>
+            </div>
+          </div>
+        </div>
+
+        {/* --- ส่วนที่เพิ่มมา: รายชื่อ Template (Template Gallery) --- */}
+        <div>
+          <div className="flex items-center gap-3 mb-6">
+            <h2 className="text-2xl font-bold text-slate-800">แม่แบบเอกสาร (Templates)</h2>
+            <div className="h-px flex-1 bg-slate-200"></div>
+          </div>
+
+          {templateList.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {templateList.map((tpl) => (
+                <div key={tpl.id} className="group bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-lg hover:border-blue-300 transition-all duration-300 flex flex-col overflow-hidden">
+                  <div className="p-6 flex-1">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="bg-blue-100 p-3 rounded-lg text-blue-700">
+                        <FileText size={24} />
+                      </div>
+                      {/* ปุ่มลบ (ถ้าต้องการใช้ ให้ทำ API Delete เพิ่ม) */}
+                      {/* <button className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={18}/></button> */}
+                    </div>
+                    <h3 className="font-bold text-lg text-slate-800 mb-1 line-clamp-1" title={tpl.name}>{tpl.name}</h3>
+                    <p className="text-xs text-slate-400">อัปโหลดเมื่อ: {tpl.createdAt ? new Date(tpl.createdAt).toLocaleDateString('th-TH') : '-'}</p>
+                  </div>
+                  
+                  <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex gap-3">
+                    <Link href={`/builder/${tpl.id}`} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm font-bold text-center transition-colors">
+                      สร้างเอกสาร
+                    </Link>
+                    {/* ปุ่มแก้ไข Template (ถ้ามีหน้า edit) */}
+                    {/* <Link href={`/templates/${tpl.id}/edit`} className="px-3 py-2 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors">
+                        <FileEdit size={18} />
+                    </Link> */}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-20 bg-white rounded-xl border border-dashed border-slate-300">
+              <div className="inline-block p-4 rounded-full bg-slate-100 mb-4 text-slate-400"><Layout size={40}/></div>
+              <p className="text-slate-500 text-lg">ยังไม่มีแม่แบบเอกสารในระบบ</p>
+              <Link href="/templates/upload" className="text-blue-600 hover:underline mt-2 inline-block font-medium">
+                คลิกที่นี่เพื่อเพิ่มแม่แบบแรก
               </Link>
-              <Link
-                href="/templates"
-                className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2 shadow-lg"
-              >
-                <Eye className="w-4 h-4" />
-                ดูเทมเพลตทั้งหมด
-              </Link>
             </div>
-          </div>
+          )}
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Statistics Cards - Government Style */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">จำนวนเทมเพลตทั้งหมด</p>
-                <p className="text-3xl font-bold text-blue-900 mt-2">{stats?.totalTemplates || 0}</p>
-                <p className="text-xs text-slate-500 mt-1">แม่แบบเอกสารในระบบ</p>
-              </div>
-              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <FileText className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
+        {/* Recent Activity Table */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
+            <History size={18} className="text-slate-400" />
+            <h3 className="font-bold text-slate-700">ประวัติการสร้างล่าสุด</h3>
           </div>
-
-          <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">เอกสารทั้งหมดที่สร้าง</p>
-                <p className="text-3xl font-bold text-green-700 mt-2">{stats?.totalDocuments || 0}</p>
-                <p className="text-xs text-slate-500 mt-1">เอกสารที่สร้างขึ้นทั้งหมด</p>
-              </div>
-              <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                <File className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">เอกสารที่สร้างวันนี้</p>
-                <p className="text-3xl font-bold text-amber-600 mt-2">{stats?.documentsToday || 0}</p>
-                <p className="text-xs text-slate-500 mt-1">วันที่ {new Date().toLocaleDateString('th-TH')}</p>
-              </div>
-              <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
-                <TrendingUp className="w-6 h-6 text-amber-600" />
-              </div>
-            </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 text-slate-500 font-medium">
+                <tr>
+                  <th className="px-6 py-3">ชื่อเอกสาร</th>
+                  <th className="px-6 py-3">แม่แบบ</th>
+                  <th className="px-6 py-3">วันที่สร้าง</th>
+                  <th className="px-6 py-3 text-right">จัดการ</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {recentDocs.map((doc) => (
+                  <tr key={doc.id} className="hover:bg-blue-50/30 transition-colors">
+                    <td className="px-6 py-4 font-medium text-slate-800">{doc.name}</td>
+                    <td className="px-6 py-4 text-slate-500">{doc.template?.name || 'Unknown'}</td>
+                    <td className="px-6 py-4 text-slate-400">{doc.createdAt ? new Date(doc.createdAt).toLocaleString('th-TH') : '-'}</td>
+                    <td className="px-6 py-4 text-right">
+                        {/* ลิงก์ไปหน้าพรีวิวหรือดาวน์โหลด */}
+                        <span className="inline-flex gap-2">
+                            <a href="#" className="text-blue-600 hover:text-blue-800 font-bold">ดาวน์โหลด</a>
+                        </span>
+                    </td>
+                  </tr>
+                ))}
+                {recentDocs.length === 0 && (
+                    <tr><td colSpan={4} className="text-center py-8 text-slate-400">ไม่มีประวัติการใช้งาน</td></tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Recent Activity Table - Government Style */}
-        <div className="bg-white rounded-xl shadow-lg border border-slate-200">
-          <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
-            <h2 className="text-lg font-semibold text-blue-900 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-blue-700" />
-              ประวัติการสร้างเอกสารล่าสุด
-            </h2>
-          </div>
-          
-          <div className="p-6">
-            {stats?.recentDocuments.length === 0 ? (
-              <div className="text-center py-12">
-                <File className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                <p className="text-slate-500 font-medium">ยังไม่มีเอกสารในระบบ</p>
-                <p className="text-slate-400 text-sm mt-1">กรุณาสร้างเอกสารจากเทมเพลตเพื่อดูประวัติการใช้งาน</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-blue-900">ชื่อเอกสาร</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-blue-900">เทมเพลตที่ใช้</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-blue-900">วันที่สร้าง</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-blue-900">การดำเนินการ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stats?.recentDocuments.map((doc) => (
-                      <tr key={doc.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                        <td className="py-3 px-4">
-                          <div className="font-medium text-slate-900">{doc.name}</div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="text-sm text-slate-600">{doc.templateName}</div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="text-sm text-slate-600">
-                            {formatThaiDate(doc.createdAt, 'short')}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => handleDownload(doc.id, 'docx')}
-                              disabled={downloading === `${doc.id}-docx`}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 border border-blue-200"
-                              title="ดาวน์โหลดเอกสาร Word"
-                            >
-                              {downloading === `${doc.id}-docx` ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Download className="w-4 h-4" />
-                              )}
-                            </button>
-                            <button
-                              onClick={() => handleDownload(doc.id, 'pdf')}
-                              disabled={downloading === `${doc.id}-pdf`}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 border border-red-200"
-                              title="ดาวน์โหลดเอกสาร PDF"
-                            >
-                              {downloading === `${doc.id}-pdf` ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <File className="w-4 h-4" />
-                              )}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      </main>
     </div>
   );
 }

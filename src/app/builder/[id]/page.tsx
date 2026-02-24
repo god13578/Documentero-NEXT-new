@@ -1,188 +1,152 @@
-"use client";
-import React, { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
-import DynamicFieldBuilder from "../../../../components/DynamicFieldBuilder";
-import RealtimePreview from "../../../../components/RealtimePreview";
-import { Loader2, FileText, Save, Download } from "lucide-react";
-import { formatThaiDate } from "../../../../utils/thaidate-helper";
+'use client';
+import React, { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { ArrowLeft, Save, Eye, Printer, Loader2, FileText } from 'lucide-react';
+
+import DynamicFieldBuilder from '@/components/DynamicFieldBuilder';
+import RealtimePreview from '@/components/RealtimePreview';
+import PdfPreview from '@/components/PdfPreview';
+import { saveDocument } from '../actions';
 
 export default function BuilderPage() {
-  const params = useParams();
-  const templateId = params?.id as string;
+  const { id } = useParams();
+  const router = useRouter();
   
   const [template, setTemplate] = useState<any>(null);
-  const [fields, setFields] = useState<string[]>([]);
-  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [htmlContent, setHtmlContent] = useState<string>(""); // เพิ่มตัวแปรเก็บ HTML
+  const [formData, setFormData] = useState<any>({});
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'html' | 'pdf'>('html');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [htmlTemplate, setHtmlTemplate] = useState<string>("");
+  const [isSaving, setIsSaving] = useState(false);
 
+  // โหลดข้อมูล Template และ HTML
   useEffect(() => {
-    if (!templateId) return;
-    
-    async function loadTemplateData() {
+    async function fetchData() {
       try {
-        setLoading(true);
-        
-        // Load template data, schema, and HTML preview in parallel
-        const [templateRes, schemaRes, htmlRes] = await Promise.all([
-          fetch(`/api/templates/${templateId}`),
-          fetch(`/api/templates/${templateId}/schema`),
-          fetch(`/api/builder/${templateId}/preview-html`, { method: 'POST' })
-        ]);
-
-        const tmpl = await templateRes.json();
-        setTemplate(tmpl);
-
-        const schema = await schemaRes.json();
-        if (schema.schema) {
-          const fieldNames = schema.schema.map((s: any) => s.variable);
-          setFields(fieldNames);
-          
-          // Initialize form data with empty values
-          const initialData: Record<string, any> = {};
-          fieldNames.forEach((field: string) => {
-            initialData[field] = "";
-          });
-          setFormData(initialData);
+        // 1. โหลดข้อมูลช่องกรอก (Fields)
+        const res = await fetch(`/api/templates/${id}`);
+        if (res.ok) {
+            const data = await res.json();
+            setTemplate(data);
+            
+            const initialData: any = {};
+            if (data.fields && Array.isArray(data.fields)) {
+              data.fields.forEach((f: any) => initialData[f.name] = "");
+            }
+            setFormData(initialData);
         }
 
-        const htmlData = await htmlRes.json();
-        if (htmlData.html) {
-          setHtmlTemplate(htmlData.html);
+        // 2. โหลดภาพ Preview (HTML) - นี่คือส่วนที่หายไป!
+        const htmlRes = await fetch(`/api/builder/${id}/preview-html`);
+        if (htmlRes.ok) {
+            const htmlData = await htmlRes.json();
+            // รองรับทั้งแบบเก่าและใหม่
+            setHtmlContent(htmlData.html || htmlData.htmlTemplate || htmlData.content || "");
         }
-        
-      } catch (error) {
-        console.error("Error loading template:", error);
-      } finally {
-        setLoading(false);
+      } catch (err) { 
+        console.error("Fetch error:", err); 
+      } finally { 
+        setLoading(false); 
       }
     }
+    if (id) fetchData();
+  }, [id]);
 
-    loadTemplateData();
-  }, [templateId]);
-
-  const handleFieldChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleFieldClick = (fieldName: string) => {
-    setFocusedField(fieldName);
-  };
-
-  const handleSaveDraft = async () => {
-    setSaving(true);
+  const handleSave = async () => {
+    if (!template) return;
+    setIsSaving(true);
     try {
-      // Save draft logic here
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log("Draft saved:", formData);
-    } catch (error) {
-      console.error("Error saving draft:", error);
+      const docName = `${template.name} - ${new Date().toLocaleString('th-TH')}`;
+      const result = await saveDocument(id as string, formData, docName);
+      if (result.success) {
+        alert("✅ บันทึกเอกสารเรียบร้อย!");
+        router.push('/dashboard'); 
+      } else {
+        alert(`❌ บันทึกไม่สำเร็จ: ${result.error}`);
+      }
+    } catch (err) {
+      alert("เกิดข้อผิดพลาดในการเชื่อมต่อ");
     } finally {
-      setSaving(false);
+      setIsSaving(false);
     }
   };
 
-  const handleGenerateDocument = async () => {
-    try {
-      // Generate document logic here
-      console.log("Generating document:", formData);
-    } catch (error) {
-      console.error("Error generating document:", error);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-xl shadow-lg text-center">
-          <Loader2 className="animate-spin w-8 h-8 text-blue-600 mx-auto mb-4" />
-          <p className="text-slate-600">กำลังโหลดแม่แบบเอกสาร...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!template) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-xl shadow-lg text-center">
-          <FileText className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-          <p className="text-slate-600">ไม่พบแม่แบบเอกสาร</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50 gap-3">
+      <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+      <p className="text-slate-500 font-medium animate-pulse">กำลังเตรียมระบบพรีวิว...</p>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center sticky top-0 z-20 shadow-sm">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800">
-            {template?.name || "กำลังโหลดแม่แบบ..."}
-          </h1>
-          <p className="text-xs text-slate-400">ID: {templateId}</p>
+    <div className="flex flex-col h-screen overflow-hidden bg-[#F8FAFC] font-sarabun relative">
+      <div className="absolute inset-0 opacity-[0.4] pointer-events-none bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:20px_20px]"></div>
+
+      {/* HEADER */}
+      <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 flex items-center justify-between shrink-0 z-50 sticky top-0">
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard" className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
+            <ArrowLeft size={20} />
+          </Link>
+          <div className="h-6 w-px bg-slate-200"></div>
+          <div>
+            <h1 className="font-bold text-slate-800 text-lg leading-tight truncate max-w-md flex items-center gap-2">
+              {template?.name || "Untitled Document"}
+              <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                Preview Ready
+              </span>
+            </h1>
+          </div>
         </div>
-        <div className="flex gap-3">
-          <button 
-            onClick={handleSaveDraft}
-            disabled={saving}
-            className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
-          >
-            {saving ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                กำลังบันทึก...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                บันทึกร่าง
-              </>
-            )}
-          </button>
-          <button 
-            onClick={handleGenerateDocument}
-            className="bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-semibold shadow-lg shadow-blue-700/20 hover:bg-blue-800 transition-all flex items-center gap-2"
-          >
-            <Download className="w-4 h-4" />
-            สร้างเอกสารราชการ
+
+        <div className="flex items-center gap-3">
+          <div className="flex bg-slate-100/80 p-1 rounded-lg border border-slate-200/60">
+            <button onClick={() => setViewMode('html')} className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-bold transition-all ${viewMode === 'html' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-black/5' : 'text-slate-500 hover:text-slate-700'}`}>
+              <Eye size={16} /> <span className="hidden sm:inline">กรอกข้อมูล</span>
+            </button>
+            <button onClick={() => setViewMode('pdf')} className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-bold transition-all ${viewMode === 'pdf' ? 'bg-white text-red-600 shadow-sm ring-1 ring-black/5' : 'text-slate-500 hover:text-slate-700'}`}>
+              <Printer size={16} /> <span className="hidden sm:inline">ดู PDF</span>
+            </button>
+          </div>
+
+          <button onClick={handleSave} disabled={isSaving} className={`text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg flex items-center gap-2 transition-all active:scale-95 ${isSaving ? 'bg-slate-400 cursor-not-allowed' : 'bg-slate-900 hover:bg-slate-800 shadow-slate-300'}`}>
+            {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+            {isSaving ? 'กำลังบันทึก...' : 'บันทึกเอกสาร'}
           </button>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-[1600px] mx-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left Side: Input Form */}
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-          <h2 className="text-lg font-semibold mb-6 text-slate-700 border-l-4 border-blue-600 pl-4">
-            ข้อมูลสำหรับกรอกลงในแม่แบบ
-          </h2>
-          <DynamicFieldBuilder 
-            fields={fields} 
-            values={formData}
-            onChange={handleFieldChange}
-            onFocusField={setFocusedField}
-          />
-        </section>
-
-        {/* Right Side: Document Preview (Sticky) */}
-        <section className="relative">
-          <div className="sticky top-[100px]">
-            <h2 className="text-sm font-medium mb-3 text-slate-500 uppercase tracking-wider">
-              ตัวอย่างเอกสารแบบเรียลไทม์
-            </h2>
-            <RealtimePreview 
-              htmlTemplate={htmlTemplate} 
-              values={formData} 
-              focusedField={focusedField}
-              onFieldClick={handleFieldClick}
-            />
+      {/* WORKSPACE */}
+      <div className="flex-1 flex overflow-hidden z-10 relative">
+        {/* Left: Form */}
+        <aside className="w-[450px] bg-white/80 backdrop-blur-sm border-r border-slate-200 flex flex-col z-20 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)]">
+          <div className="p-6 border-b border-slate-100 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100"><FileText size={18} /></div>
+            <div><h2 className="text-slate-800 font-bold text-base">ข้อมูลเอกสาร</h2></div>
           </div>
-        </section>
-      </main>
+          <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-slate-200">
+            <DynamicFieldBuilder fields={template?.fields || []} value={formData} onChange={setFormData} onFocusField={setFocusedField} />
+          </div>
+        </aside>
+
+        {/* Right: Preview */}
+        <main className="flex-1 overflow-y-auto p-8 flex justify-center bg-slate-100/50 scrollbar-thin relative">
+          <div className="w-full max-w-[210mm] transition-all duration-300 pb-20">
+            {viewMode === 'html' ? (
+              <RealtimePreview 
+                // ดึง htmlContent มาใช้ ถ้าไม่มีใช้ของ template ถ้าไม่มีอีก ปล่อยว่าง
+                htmlTemplate={htmlContent || template?.htmlTemplate || ""} 
+                values={formData} 
+                focusedField={focusedField} 
+              />
+            ) : (
+              <PdfPreview templateId={id as string} values={formData} />
+            )}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

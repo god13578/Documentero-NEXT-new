@@ -1,83 +1,69 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db/client";
-import { templates, templateFields } from "@/lib/db/schema";
-import { randomUUID } from "crypto";
-import fs from "fs/promises";
+import { templates, users, templateFields } from "@/lib/db/schema";
+import { writeFile, mkdir } from "fs/promises";
 import path from "path";
-import { extractFieldsFromDocx } from "@/lib/document/parser";
-import { getSession } from "@/lib/auth/session";
+import { v4 as uuidv4 } from 'uuid';
+import { extractFieldsFromDocx } from "@/lib/template/field-extractor"; 
 
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
   try {
-    // Get user session
-    const session = await getSession();
-    if (!session) {
-      console.error("Template upload failed: No active session");
-      return NextResponse.json({ error: "Unauthorized - Please login first" }, { status: 401 });
-    }
-
-    const formData = await request.formData();
+    const formData = await req.formData();
     const file = formData.get("file") as File;
     const name = formData.get("name") as string;
 
-    if (!file || !name) {
-      console.error("Template upload failed: Missing file or name");
-      return NextResponse.json({ error: "File and name are required" }, { status: 400 });
+    if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
+
+    // 1. หา User (Guest Admin)
+    let user = await db.query.users.findFirst();
+    if (!user) {
+      // ถ้าไม่มี User สร้างใหม่เลย
+      const [newUser] = await db.insert(users).values({
+        username: 'admin', password: 'password', role: 'admin'
+      }).returning();
+      user = newUser;
     }
 
-    // Save template file
-    const templateId = randomUUID();
-    const fileName = `${templateId}.docx`;
-    const uploadPath = path.join(process.cwd(), "public", "templates", fileName);
+    // 2. เตรียม Folder
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const filename = `${uuidv4()}-${file.name.replace(/\s+/g, '_')}`;
+    const uploadDir = path.join(process.cwd(), "public/templates");
+    await mkdir(uploadDir, { recursive: true });
+    await writeFile(path.join(uploadDir, filename), buffer);
+
+    // 3. บันทึก Template ลง DB
+    const [newTemplate] = await db.insert(templates).values({
+      userId: user.id,
+      name: name || file.name,
+      docxPath: `/templates/${filename}`,
+    }).returning();
+
+    // 4. แกะ Field และบันทึกทันที (สำคัญมาก! อันนี้จะทำให้ Input ขึ้น)
+    const fields = await extractFieldsFromDocx(buffer);
     
-    // Ensure templates directory exists
-    await fs.mkdir(path.dirname(uploadPath), { recursive: true });
-    
-    // Save file
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    await fs.writeFile(uploadPath, buffer);
-
-    // Extract fields from template
-    const uniqueFields = extractFieldsFromDocx(buffer);
-    console.log(`Template "${name}" uploaded with fields:`, uniqueFields);
-
-    // Save template to database with actual user ID
-    await db.insert(templates).values({
-      id: templateId,
-      userId: session, // session is the userId string directly
-      name,
-      docxPath: `public/templates/${fileName}`, // Store relative path
-      originalName: file.name,
-      fieldConfig: {},
-    });
-
-    // Save template fields with proper IDs
-    for (const fieldName of uniqueFields) {
-      await db.insert(templateFields).values({
-        id: randomUUID(),
-        templateId,
-        name: fieldName,
-      });
+    if (fields.length > 0) {
+      await db.insert(templateFields).values(
+        fields.map(f => ({
+          templateId: newTemplate.id,
+          name: f,
+          label: f,
+          type: 'text'
+        }))
+      );
     }
 
-    console.log(`Template "${name}" saved successfully with ID: ${templateId}`);
-
-    return NextResponse.json({ 
-      success: true, 
-      templateId,
-      fields: uniqueFields 
-    });
+    return NextResponse.json({ success: true });
 
   } catch (error) {
-    console.error("Error uploading template:", {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      timestamp: new Date().toISOString()
-    });
-    return NextResponse.json({ 
-      error: "Failed to upload template",
-      details: error instanceof Error ? error.message : "Unknown error"
-    }, { status: 500 });
+    console.error("Upload Error:", error);
+    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
+}
+
+// เพิ่ม GET เพื่อให้หน้า Dashboard ดึงข้อมูลได้
+export async function GET() {
+    const allTemplates = await db.query.templates.findMany({
+        orderBy: (templates, { desc }) => [desc(templates.createdAt)],
+    });
+    return NextResponse.json(allTemplates);
 }

@@ -1,54 +1,66 @@
-import { NextRequest, NextResponse } from "next/server";
-import { exec } from "child_process";
-import { promisify } from "util";
-import fs from "fs";
-import path from "path";
-import os from "os";
-import PizZip from "pizzip";
-import Docxtemplater from "docxtemplater";
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db/client';
+import { templates } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
+import fs from 'fs';
+import path from 'path';
+// หากในโปรเจกต์คุณใช้ชื่อฟังก์ชันอื่นในการสร้าง PDF ให้แก้ตรงนี้นะครับ 
+// (เช่น import { createPdf } หรือ import { generateDocx })
+import { generatePdf } from '@/lib/document/generator'; 
 
-const execAsync = promisify(exec);
+export const dynamic = 'force-dynamic';
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const { values } = await req.json();
-    const docxPath = path.join(process.cwd(), "public", "templates", `${params.id}.docx`);
-    const tempDir = path.join(os.tmpdir(), "doc-gen");
-    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+    const { id } = params;
+    const searchParams = req.nextUrl.searchParams;
+    const dataJson = searchParams.get('data');
+    const values = dataJson ? JSON.parse(dataJson) : {};
 
-    // 1. Generate Word
-    const content = fs.readFileSync(docxPath, "binary");
-    const zip = new PizZip(content);
-    const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
-    doc.setData(values || {});
-    doc.render();
-    const buf = doc.getZip().generate({ type: "nodebuffer" });
+    // 1. ค้นหาแม่แบบใน Database
+    const [template] = await db.select().from(templates).where(eq(templates.id, id));
 
-    // 2. Save Temp Word
-    const tempId = Date.now();
-    const tempWordPath = path.join(tempDir, `${tempId}.docx`);
-    fs.writeFileSync(tempWordPath, buf);
+    if (!template) {
+      return new NextResponse("Template not found", { status: 404 });
+    }
 
-    // 3. Convert to PDF (LibreOffice)
-    // หมายเหตุ: ต้องติดตั้ง LibreOffice ในเครื่อง/Server
-    const soffice = process.platform === "win32" ? '"C:\\Program Files\\LibreOffice\\program\\soffice.exe"' : "libreoffice";
-    await execAsync(`${soffice} --headless --convert-to pdf --outdir "${tempDir}" "${tempWordPath}"`);
+    // 2. ระบบค้นหาไฟล์อัจฉริยะ (แก้ปัญหาหาไฟล์ไม่เจอ)
+    let filePath = "";
+    const cleanPath = template.docxPath.replace(/^\//, ''); // ตัด / ข้างหน้าทิ้ง
+    
+    if (cleanPath.startsWith('public/')) {
+        filePath = path.join(process.cwd(), cleanPath);
+    } else {
+        filePath = path.join(process.cwd(), 'public', cleanPath);
+    }
 
-    // 4. Read PDF
-    const pdfPath = path.join(tempDir, `${tempId}.pdf`);
-    const pdfBuf = fs.readFileSync(pdfPath);
+    if (!fs.existsSync(filePath)) {
+       console.error("❌ PDF Preview Error: File missing at", filePath);
+       // ถ้าหาไม่เจอ ส่งข้อความกลับไปให้รู้
+       return new NextResponse(`File missing on server: ${template.docxPath}`, { status: 404 });
+    }
 
-    // Cleanup
-    try { fs.unlinkSync(tempWordPath); fs.unlinkSync(pdfPath); } catch {}
+    // 3. อ่านไฟล์ Word
+    const docxBuffer = fs.readFileSync(filePath);
+    
+    // 4. สร้าง PDF
+    // หมายเหตุ: ตรงนี้ต้องแน่ใจว่าฟังก์ชัน generatePdf มีอยู่จริงในโปรเจกต์ของคุณ 
+    // ถ้าโปรเจกต์เก่าคืนค่าเป็น docx ก็ใช้ generateDocx แทนได้
+    const pdfBuffer = await generatePdf(docxBuffer, values); 
 
-    return new NextResponse(pdfBuf, {
+    // 5. ส่งไฟล์ PDF กลับไปให้หน้าเว็บแสดง
+    return new NextResponse(pdfBuffer, {
       headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": "inline; filename=preview.pdf", // Important: Inline for browser viewing
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': 'inline; filename="preview.pdf"',
       },
     });
-  } catch (error: any) {
-    console.error(error);
-    return NextResponse.json({ error: "Failed to generate PDF. Make sure LibreOffice is installed." }, { status: 500 });
+
+  } catch (error) {
+    console.error('🔥 PDF Preview Route Error:', error);
+    return new NextResponse(String(error), { status: 500 });
   }
 }

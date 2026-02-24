@@ -1,15 +1,24 @@
+/** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    "./pages/**/*.{js,jsx}",
-    "./components/**/*.{js,jsx}",
+    // ชี้ไปที่ src (สำคัญมาก เพราะเราย้ายไฟล์มานี่แล้ว)
+    "./src/**/*.{js,ts,jsx,tsx,mdx}",
+    
+    // เผื่อไฟล์เก่าที่ยังหลงเหลือ
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./components/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {
-      colors: {
-        accent: "#06b6d4",   // ฟ้า
-        primary: "#0f172a"   // น้ำเงินเข้ม
-      }
-    }
+      fontFamily: {
+        // เพิ่มฟอนต์สารบรรณ
+        sarabun: ['var(--font-sarabun)', 'sans-serif'],
+      },
+    },
   },
-  plugins: [],
-}
+  plugins: [
+    // เรียกใช้ปลั๊กอินที่เราเพิ่งลงไปในข้อ 1
+    require('@tailwindcss/typography'),
+  ],
+};
