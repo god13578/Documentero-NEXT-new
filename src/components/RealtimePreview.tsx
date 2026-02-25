@@ -5,71 +5,79 @@ interface Props {
   htmlTemplate: string;
   values: any;
   focusedField: string | null;
+  onFieldClick?: (fieldName: string) => void;
 }
 
-export default function RealtimePreview({ htmlTemplate, values, focusedField }: Props) {
+export default function RealtimePreview({ htmlTemplate, values, focusedField, onFieldClick }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // แปลง HTML Template ให้เป็น Live Preview
   const previewHtml = useMemo(() => {
-    let output = htmlTemplate || "<div class='flex flex-col items-center justify-center h-full text-slate-300 mt-20 italic'>...ยังไม่มีข้อมูลตัวอย่าง...</div>";
+    if (!htmlTemplate) return "<div class='text-center text-slate-400 mt-20'>กำลังเตรียมเอกสาร...</div>";
     
+    let output = htmlTemplate;
+
     Object.keys(values).forEach(key => {
-      // ถ้ามีค่า ให้แสดงค่า ถ้าไม่มี ให้แสดง [key] สีเทา
       const val = values[key] 
-        ? `<span class='font-semibold text-blue-900'>${values[key]}</span>`
-        : `<span class='text-slate-300 bg-slate-50 px-1 rounded select-none text-[0.9em]'>[${key}]</span>`;
+        ? `<span class='font-bold text-black'>${values[key]}</span>`
+        : `<span class='text-slate'>[${key}]</span>`;
       
-      // ใส่ ID เพื่อให้ Jump ไปหาได้
       const regex = new RegExp(`{${key}}`, 'g');
-      output = output.replace(regex, `<span id="preview-field-${key}" data-field="${key}" class="transition-all duration-300 decoration-clone inline-block border-b-2 border-transparent">${val}</span>`);
+      output = output.replace(regex, `<span data-field="${key}" class="preview-hl bg-[#fef08a] cursor-pointer hover:bg-[#fde047] transition-all duration-300 rounded px-1 inline-block">${val}</span>`);
     });
+
+    output = output.replace(/<p><\/p>/g, '<p><br/></p>');
+    output = output.replace(/<p>\s*<\/p>/g, '<p><br/></p>');
+
     return output;
   }, [htmlTemplate, values]);
 
-  // ระบบ Auto-Scroll และ Highlight
   useEffect(() => {
     if (!containerRef.current) return;
-
-    // 1. Clear Old Highlights
-    const allFields = containerRef.current.querySelectorAll('[data-field]');
+    
+    const allFields = containerRef.current.querySelectorAll('.preview-hl');
     allFields.forEach((el: any) => {
-      el.style.backgroundColor = 'transparent';
-      el.style.borderColor = 'transparent';
+      el.style.backgroundColor = '#fef08a';
       el.style.transform = 'scale(1)';
+      el.style.boxShadow = 'none';
+      el.style.zIndex = '0';
     });
 
-    // 2. Apply New Highlight
     if (focusedField) {
-      const target = containerRef.current.querySelector(`#preview-field-${focusedField}`);
-      if (target) {
-        // Scroll อย่างนุ่มนวล
-        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        
-        // Highlight Effect
-        (target as HTMLElement).style.backgroundColor = '#fef9c3'; // yellow-100
-        (target as HTMLElement).style.borderColor = '#eab308'; // yellow-500
-        (target as HTMLElement).style.color = '#854d0e'; // yellow-900
-        (target as HTMLElement).style.padding = '2px 4px';
-        (target as HTMLElement).style.borderRadius = '4px';
-        (target as HTMLElement).style.transform = 'scale(1.1)';
-        (target as HTMLElement).style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
-      }
+      const targets = containerRef.current.querySelectorAll(`[data-field="${focusedField}"]`);
+      targets.forEach((target: any) => {
+        target.style.backgroundColor = '#facc15'; 
+        target.style.transform = 'scale(1.1)'; 
+        target.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.2)';
+        target.style.zIndex = '10';
+        target.style.position = 'relative';
+      });
     }
   }, [focusedField]);
 
+  const handlePreviewClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const fieldSpan = target.closest('.preview-hl');
+    if (fieldSpan && onFieldClick) {
+      const fieldName = fieldSpan.getAttribute('data-field');
+      if (fieldName) onFieldClick(fieldName);
+    }
+  };
+
   return (
-    <div className="flex justify-center min-h-full pb-20 perspective-1000">
-      {/* กระดาษ A4 */}
-      <div className="bg-white w-[210mm] min-h-[297mm] p-[25mm] 
-                      shadow-[0_20px_50px_rgba(0,0,0,0.1)] 
-                      border border-slate-200/50 
-                      text-black font-sarabun text-[16pt] leading-[1.6]
-                      transition-transform duration-500 ease-out origin-top
-                      ">
+    // 🌟 เพิ่ม print:block print:p-0 เข้าไปเพื่อไม่ให้เบราว์เซอร์ค้าง
+    <div className="flex justify-center w-full min-h-full pb-20 pt-8 print:block print:p-0 print:m-0 print:bg-white">
+      <div 
+        className="bg-white w-[210mm] min-h-[297mm] p-[20mm] shadow-[0_15px_35px_rgba(0,0,0,0.15)] text-black font-sarabun text-[16pt] print:shadow-none print:w-full print:min-h-0 print:p-0 print:m-0"
+        onClick={handlePreviewClick}
+      >
         <div 
           ref={containerRef}
-          className="prose max-w-none break-words empty:hidden"
+          className="prose max-w-none break-words leading-relaxed
+                     prose-p:my-1 prose-p:min-h-[1.5em]
+                     prose-table:w-full prose-table:border-collapse prose-table:border prose-table:border-black prose-table:my-4
+                     prose-td:border prose-td:border-black prose-td:p-2 prose-td:align-top
+                     prose-img:max-h-[110px] prose-img:w-auto prose-img:mx-auto prose-img:my-2
+                     [&_.page-break]:my-8 [&_.page-break_hr]:border-dashed [&_.page-break_hr]:border-slate-300 print:[&_.page-break]:break-after-page print:[&_.page-break_hr]:hidden"
           dangerouslySetInnerHTML={{ __html: previewHtml }}
         />
       </div>

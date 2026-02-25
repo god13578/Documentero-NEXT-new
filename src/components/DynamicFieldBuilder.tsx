@@ -62,6 +62,7 @@ export default function DynamicFieldBuilder({ fields, value, onChange, onFocusFi
             </div>
             
             <input
+              id={`input-field-${field.name}`}
               type="text"
               className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl text-slate-700 text-[15px] font-medium 
                          placeholder:text-slate-300 shadow-sm
